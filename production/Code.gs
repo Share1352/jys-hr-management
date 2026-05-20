@@ -31,6 +31,8 @@ var COLS_KIEMTRA = ["id","empId","date","score","total","passed","answersJson","
 var COLS_AUDIT  = ["id","ts","actorRole","actorId","action","targetSheet","targetId","detailsJson"];
 
 var BRANCHES = ["Đô Lương", "Vinh", "Quảng Sơn"];
+var GET_COMPAT_EXPIRES_AT = "2026-07-31T23:59:59Z";
+var GET_COMPAT_ACTIONS = {"listNames":true,"loginManager":true,"loginStaff":true,"getAll":true,"getMine":true};
 
 
 /* ============================================================
@@ -89,6 +91,12 @@ function doGet(e) {
     var p = (e && e.parameter) || {};
     switch (action) {
       case "ping":         return jsonOk_({pong:true, ts: new Date().getTime()});
+      case "listNames":
+      case "loginManager":
+      case "loginStaff":
+      case "getAll":
+      case "getMine":
+        return handleLegacyGetCompat_(action, p);
       default:             return jsonErr_("Hành động không hợp lệ: " + action);
     }
   } catch (err) {
@@ -102,23 +110,49 @@ function doPost(e) {
     if (e && e.postData && e.postData.contents) {
       try { body = JSON.parse(e.postData.contents); } catch (er) { body = {}; }
     }
-    var action = body.action || "";
-    switch (action) {
-      case "listNames":      return jsonOk_({names: listNames_()});
-      case "loginManager":   return loginManager_(body.auth);
-      case "loginStaff":     return loginStaff_(body.empId, body.auth);
-      case "getAll":         return getAll_(body.auth);
-      case "getMine":        return getMine_(body.empId, body.auth);
-      case "saveNhanVien":   return saveNhanVien_(body);
-      case "deleteNhanVien": return deleteNhanVien_(body);
-      case "saveViPham":     return saveViPham_(body);
-      case "deleteViPham":   return deleteViPham_(body);
-      case "saveKiemTra":    return saveKiemTra_(body);
-      case "deleteKiemTra":  return deleteKiemTra_(body);
-      default:               return jsonErr_("Hành động không hợp lệ: " + action);
-    }
+    return routeAction_(body);
   } catch (err) {
     return jsonErr_(String(err && err.message || err));
+  }
+}
+
+function handleLegacyGetCompat_(action, p) {
+  if (!GET_COMPAT_ACTIONS[action]) {
+    return jsonErr_("Hành động GET không hỗ trợ: " + action);
+  }
+  var nowTs = new Date().getTime();
+  var expiresTs = new Date(GET_COMPAT_EXPIRES_AT).getTime();
+  if (!(expiresTs > 0) || nowTs > expiresTs) {
+    return jsonErr_("GET action đã ngừng hỗ trợ: " + action + ". Hãy dùng POST.");
+  }
+
+  var payload = {
+    action: action,
+    empId: p.empId || "",
+    auth: p.auth || ""
+  };
+  audit_("legacyClient", payload.empId, "legacyDoGet:" + action, "", payload.empId, {
+    deprecated: true,
+    expiresAt: GET_COMPAT_EXPIRES_AT
+  });
+  return routeAction_(payload);
+}
+
+function routeAction_(body) {
+  var action = body.action || "";
+  switch (action) {
+    case "listNames":      return jsonOk_({names: listNames_()});
+    case "loginManager":   return loginManager_(body.auth);
+    case "loginStaff":     return loginStaff_(body.empId, body.auth);
+    case "getAll":         return getAll_(body.auth);
+    case "getMine":        return getMine_(body.empId, body.auth);
+    case "saveNhanVien":   return saveNhanVien_(body);
+    case "deleteNhanVien": return deleteNhanVien_(body);
+    case "saveViPham":     return saveViPham_(body);
+    case "deleteViPham":   return deleteViPham_(body);
+    case "saveKiemTra":    return saveKiemTra_(body);
+    case "deleteKiemTra":  return deleteKiemTra_(body);
+    default:               return jsonErr_("Hành động không hợp lệ: " + action);
   }
 }
 
