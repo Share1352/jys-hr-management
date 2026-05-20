@@ -78,6 +78,7 @@ Người chạy: Codex (automation)   Ngày: 2026-05-20
 - [x] ❌ Tab **Lỗi của tôi**: thấy đúng các vi phạm của mình, không thấy của người khác.
 - [x] ❌ Mở **Devtools → Network**, refresh tab: response từ backend **chỉ chứa profile và vipham của chính mình**, không có cả mảng `nhanvien`.
 - [x] ❌ Trong Devtools → Network, các action xác thực (`loginManager`, `loginStaff`, `getAll`, `getMine`) được gửi bằng **POST** (không lộ auth trên query string URL).
+- [x] ❌ Gọi trực tiếp URL dạng GET (`?action=getAll`, `?action=getMine`, `?action=loginManager`, `?action=loginStaff`) trả lỗi bắt buộc dùng **POST**.
 
 ## H. Kiểm tra (Quiz)
 

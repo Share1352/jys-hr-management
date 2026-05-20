@@ -31,8 +31,6 @@ var COLS_KIEMTRA = ["id","empId","name","branch","pos","date","ts","score","tota
 var COLS_AUDIT  = ["id","ts","actorRole","actorId","action","targetSheet","targetId","detailsJson"];
 
 var BRANCHES = ["Đô Lương", "Vinh", "Quảng Sơn"];
-var GET_COMPAT_EXPIRES_AT = "2026-07-31T23:59:59Z";
-var GET_COMPAT_ACTIONS = {"listNames":true,"loginManager":true,"loginStaff":true,"getAll":true,"getMine":true};
 
 
 /* ============================================================
@@ -88,16 +86,12 @@ function ensureSheet_(ss, name, cols) {
 function doGet(e) {
   try {
     var action = (e && e.parameter && e.parameter.action) || "";
-    var p = (e && e.parameter) || {};
     switch (action) {
       case "ping":         return jsonOk_({pong:true, ts: new Date().getTime()});
-      case "listNames":
-      case "loginManager":
-      case "loginStaff":
-      case "getAll":
-      case "getMine":
-        return handleLegacyGetCompat_(action, p);
-      default:             return jsonErr_("Hành động không hợp lệ: " + action);
+      case "":
+        return jsonErr_("Chỉ hỗ trợ POST cho các action nghiệp vụ. Vui lòng gọi doPost.");
+      default:
+        return jsonErr_("GET không được hỗ trợ cho action: " + action + ". Hãy dùng POST.");
     }
   } catch (err) {
     return jsonErr_(String(err && err.message || err));
@@ -114,28 +108,6 @@ function doPost(e) {
   } catch (err) {
     return jsonErr_(String(err && err.message || err));
   }
-}
-
-function handleLegacyGetCompat_(action, p) {
-  if (!GET_COMPAT_ACTIONS[action]) {
-    return jsonErr_("Hành động GET không hỗ trợ: " + action);
-  }
-  var nowTs = new Date().getTime();
-  var expiresTs = new Date(GET_COMPAT_EXPIRES_AT).getTime();
-  if (!(expiresTs > 0) || nowTs > expiresTs) {
-    return jsonErr_("GET action đã ngừng hỗ trợ: " + action + ". Hãy dùng POST.");
-  }
-
-  var payload = {
-    action: action,
-    empId: p.empId || "",
-    auth: p.auth || ""
-  };
-  audit_("legacyClient", payload.empId, "legacyDoGet:" + action, "", payload.empId, {
-    deprecated: true,
-    expiresAt: GET_COMPAT_EXPIRES_AT
-  });
-  return routeAction_(payload);
 }
 
 function routeAction_(body) {
