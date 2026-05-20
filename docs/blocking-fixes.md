@@ -3,14 +3,19 @@ to production OR before GitHub Pages is enabled on this repo.
 
 > Gate policy: mỗi mục chỉ được tick khi đã có **bằng chứng runtime validation** (ảnh/chụp màn hình, log Network/Console, hoặc kết quả sheet thực tế), không chỉ vì code đã sửa xong.
 
-- [x] fix PIN reset modal bug
-- [x] make employee PIN field readonly
-- [x] remove hardcoded default manager code from `Code.gs`
-- [x] change docs to use a new private `MANAGER_CODE`, not any old/shared code
-- [x] add `ts` to `ViPham` and `KiemTra` schema
-- [x] fix `KiemTra` name/branch/pos persistence or frontend fallback
-- [x] move authenticated reads to POST if possible
-- [x] rerun `production/TEST_PLAN.md`
+- [ ] fix PIN reset modal bug
+- [ ] make employee PIN field readonly
+- [ ] remove hardcoded default manager code from `Code.gs`
+- [ ] change docs to use a new private `MANAGER_CODE`, not any old/shared code
+- [ ] add `ts` to `ViPham` and `KiemTra` schema
+- [ ] fix `KiemTra` name/branch/pos persistence or frontend fallback
+- [ ] move authenticated reads to POST if possible
+- [ ] rerun `production/TEST_PLAN.md`
+
+## Runtime validation status (2026-05-20)
+
+- Kết quả test plan đầy đủ đã được ghi vào `production/TEST_PLAN.md` với trạng thái **CHƯA đủ điều kiện rollout**.
+- Vì chưa có evidence runtime production (Wix + Apps Script + Sheet), tất cả blocker vẫn phải giữ trạng thái mở/chưa tick.
 
 ## Required evidence before deployment gate opens
 
