@@ -742,7 +742,7 @@ function enterApp(){
       $("#panels").innerHTML='<div class="center-load">'+esc(NET_ERR)+'</div>';
     });
   } else {
-    call({params:{action:"getMine",empId:SESSION.empId,auth:SESSION.auth}, loading:"Đang tải hồ sơ…"}).then(function(res){
+    call({body:{action:"getMine",empId:SESSION.empId,auth:SESSION.auth}, loading:"Đang tải hồ sơ…"}).then(function(res){
       if(!res||!res.ok){ $("#panels").innerHTML='<div class="center-load">Lỗi tải dữ liệu: '+esc((res&&res.error)||"")+'</div>'; return; }
       MINE.profile=res.profile||null;
       MINE.vipham=res.vipham||[];

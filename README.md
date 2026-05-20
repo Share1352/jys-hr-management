@@ -75,6 +75,21 @@ Xem chi tiết trong `production/HUONG_DAN_CAI_DAT.md`. Tóm tắt:
 
 ---
 
+## API policy (GET vs POST)
+
+- **POST là chuẩn chính thức** cho toàn bộ action nghiệp vụ:
+  - `listNames`, `loginManager`, `loginStaff`, `getAll`, `getMine`
+  - và các action ghi dữ liệu (`save*`, `delete*`).
+- `doGet` chỉ dành cho `action=ping` để health-check.
+- Backend có **cửa sổ tương thích tạm thời** cho client cũ gọi GET các action ở trên đến hết **2026-07-31 (UTC)**, đồng thời ghi audit `legacyDoGet:<action>` để truy vết client cũ.
+- Sau mốc này, GET cho các action nghiệp vụ sẽ bị từ chối và bắt buộc cập nhật frontend bản mới.
+
+Khuyến nghị vận hành:
+- Mọi bản frontend đang chạy trên Wix/static host phải được thay bằng bản mới nhất từ `production/jys_quan_ly_nhan_su.html`.
+- Không duy trì nhiều bản frontend cũ song song để tránh tiếp tục phát sinh traffic GET đã deprecated.
+
+---
+
 ## Trạng thái
 
 - **Chưa enable GitHub Pages.** Sẽ chỉ bật sau khi các blocker trong issue *"Blocking fixes before deployment"* được fix và `TEST_PLAN.md` pass.
