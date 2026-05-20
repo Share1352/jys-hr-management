@@ -134,3 +134,6 @@ Ngày xác nhận (YYYY-MM-DD): 2026-05-20
 Link evidence test run (docs, screenshots, logs): `N/A - môi trường hiện tại không truy cập được runtime Wix + Apps Script + Google Sheet production để thu evidence trực tiếp.`
 
 Ghi chú rủi ro còn lại (nếu có): Tất cả hạng mục runtime validation vẫn đang blocked; cần một test run thủ công trong production-like environment với đầy đủ ảnh, network capture, và sheet snapshots.
+
+- [ ] Admin page: đăng nhập ADMIN_USER/ADMIN_PASS, xem và đổi mã quản lý + mã cá nhân nhân viên.
+- [ ] Đăng nhập sai mã không còn bị trình duyệt gợi ý mã cũ (autocomplete tắt ở ô mã).
