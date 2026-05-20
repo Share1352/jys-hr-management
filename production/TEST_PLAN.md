@@ -112,3 +112,20 @@ Người chạy: __________________   Ngày: __________
 
 - [ ] Tất cả mục trên đều ✅ → **app sẵn sàng giao cho nhân viên dùng**.
 - [ ] Có mục ❌ → ghi rõ và sửa, chạy lại checklist từ section liên quan.
+
+## Final sign-off (bắt buộc trước khi enable GitHub Pages / rollout production)
+
+> Chỉ ký khi toàn bộ checklist đã được chạy thực tế và có evidence đính kèm (runtime validation).
+
+- [ ] **Gate quyết định**: Đủ điều kiện enable GitHub Pages + production rollout.
+- [ ] **Gate quyết định**: CHƯA đủ điều kiện, tiếp tục chặn deploy.
+
+Owner xác nhận (họ tên): __________________
+
+Vai trò: __________________
+
+Ngày xác nhận (YYYY-MM-DD): __________________
+
+Link evidence test run (docs, screenshots, logs): __________________
+
+Ghi chú rủi ro còn lại (nếu có): __________________
