@@ -1,0 +1,82 @@
+# JYS HR Management
+
+Hệ thống quản lý nhân sự cho Trung tâm Anh ngữ Quốc tế JYS.
+
+Backend: **Google Apps Script + Google Sheets**.
+Frontend: **một file HTML tĩnh duy nhất** (`production/jys_quan_ly_nhan_su.html`) — nhúng vào trang Wix qua iframe, hoặc host trên bất kỳ static host nào.
+
+---
+
+## Cấu trúc thư mục
+
+```
+production/        ← ĐƯỜNG DẪN ĐI VÀO SẢN PHẨM. Chỉ deploy từ đây.
+  jys_quan_ly_nhan_su.html   Single-file frontend (vanilla JS, không build step)
+  Code.gs                    Apps Script backend (copy vào Apps Script editor)
+  HUONG_DAN_CAI_DAT.md       Hướng dẫn cài đặt từ A→Z
+  WIX_PAGE_SETUP.md          Cách nhúng iframe vào Wix
+  TEST_PLAN.md               Test plan QA — phải pass trước khi deploy
+
+prototype/         ← TÀI LIỆU THAM CHIẾU VISUAL. KHÔNG dùng để deploy.
+  index.html                 Bản React/JSX để xem nhanh giao diện
+  app.jsx, screens-*.jsx, styles.css, data.js
+  jys-hr.html                Snapshot bundle cũ
+  verify-live.html           Trang kiểm tra nhanh
+  jys-logo-dataurl.txt       Logo embed (base64 data URL)
+
+archive/old-bundles/   ← Các bản dựng cũ. Không build, không deploy từ đây.
+```
+
+---
+
+## ⚠️ Quy tắc bảo mật
+
+Repo này là **private** và **không bao giờ chứa secrets**.
+
+| Bí mật | Lưu ở đâu | Tuyệt đối KHÔNG |
+|---|---|---|
+| `API_URL` (link Apps Script `/exec`) | Chỉ dán vào **bản HTML đã deploy** (file copy trên host). | Commit URL thật vào repo. Repo giữ placeholder `__API_URL__`. |
+| `MANAGER_CODE` | Apps Script → **Project Settings → Script Properties**. | Hardcode trong `Code.gs`, README, docs, hoặc bất kỳ file nào trong repo. |
+
+### Quy ước placeholder
+
+- `production/jys_quan_ly_nhan_su.html` phải luôn chứa:
+  ```js
+  var API_URL = "__API_URL__";
+  ```
+  Khi deploy, copy file ra ngoài repo, thay `__API_URL__` bằng URL Apps Script thật, rồi mới upload lên host. **Không commit phiên bản đã thay**.
+
+- `production/Code.gs` không có giá trị `MANAGER_CODE` mặc định. `khoiTaoSheet()` sẽ throw nếu chưa cấu hình Script Property → buộc người triển khai phải đặt mã thật trong Apps Script.
+
+---
+
+## Triển khai (tóm tắt)
+
+Xem chi tiết trong `production/HUONG_DAN_CAI_DAT.md`. Tóm tắt:
+
+1. **Google Sheet + Apps Script**
+   - Tạo Google Sheet mới.
+   - Tools → Apps Script → dán toàn bộ `production/Code.gs`.
+   - Project Settings → Script Properties → thêm `MANAGER_CODE = <mã riêng do bạn chọn>`.
+   - Chạy `khoiTaoSheet()` một lần để tạo các tab.
+   - Deploy → New deployment → Web app (Execute as: Me, Who has access: Anyone). Copy URL `/exec`.
+
+2. **Frontend**
+   - Copy `production/jys_quan_ly_nhan_su.html` ra ngoài repo.
+   - Sửa `var API_URL = "__API_URL__";` thành URL `/exec` ở bước 1.
+   - Upload file đã sửa lên static host (Cloudflare Pages, GitHub Pages, hoặc host bất kỳ).
+
+3. **Wix embed**
+   - Trong Wix Editor → Add → Embed → HTML iframe → trỏ tới URL bản frontend.
+   - Xem `production/WIX_PAGE_SETUP.md`.
+
+4. **QA**
+   - Chạy đủ checklist trong `production/TEST_PLAN.md` trước mỗi lần deploy.
+
+---
+
+## Trạng thái
+
+- **Chưa enable GitHub Pages.** Sẽ chỉ bật sau khi các blocker trong issue *"Blocking fixes before deployment"* được fix và `TEST_PLAN.md` pass.
+- **prototype/** chỉ để tham chiếu visual — không sync logic với `production/`.
+- Tất cả thay đổi production phải đi qua `production/` và bumps `TEST_PLAN.md`.

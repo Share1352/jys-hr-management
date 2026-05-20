@@ -1,0 +1,22 @@
+# Secrets and local deploy copies
+.env
+.env.*
+secrets/
+*.deploy.html
+*.local.html
+
+# Helper script is for local one-shot setup only; do not commit it
+setup-github.sh
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Dependency/build artifacts, if future tooling is added
+node_modules/
+dist/
+build/
+.cache/
