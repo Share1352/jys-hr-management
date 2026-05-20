@@ -40,8 +40,8 @@ Người chạy: __________________   Ngày: __________
 - [ ] Mở lại sheet `NhanVien`: row mới có cột `maCaNhan` đúng mã đó, cột `createdAt` và `updatedAt` đã set.
 
 - [ ] **Sửa** nhân viên "Test Một": đổi vị trí và lương 13.000.000, bấm Lưu. Hạng tự đổi sang **Bậc 3**. Hộp thoại mã **không hiện** (vì không có "Tạo mã mới"). Toast "Đã cập nhật hồ sơ".
-- [ ] Field "Mã cá nhân" trong form sửa là **readonly** (không gõ được).
-- [ ] Nhấn **Tạo mã mới khi lưu** → field PIN mờ đi. Bấm Lưu → hộp thoại mã mới hiện. Mã khác mã cũ. Sheet `NhanVien` cột `maCaNhan` đã đổi.
+- [ ] Field "Mã cá nhân" trong form sửa là **readonly** (không gõ được), nền hiển thị mờ và con trỏ dạng không cho sửa.
+- [ ] Nhấn **Tạo mã mới khi lưu** → chỉ đổi trạng thái nút/hint (field PIN vẫn readonly). Bấm Lưu → hộp thoại mã mới hiện. Mã khác mã cũ. Sheet `NhanVien` cột `maCaNhan` đã đổi.
 
 - [ ] Thêm vài nhân viên khác ở các chi nhánh khác nhau (Vinh, Quảng Sơn).
 - [ ] **Tìm**: gõ vào ô tìm kiếm → bảng lọc đúng.

@@ -963,7 +963,7 @@ function renderHRForm(emp){
   var v=function(k){return emp&&emp[k]!=null?emp[k]:"";};
   var pinLine = emp
     ? '<div class="field"><label>Mã cá nhân của nhân viên</label>'+
-      '<div class="btn-row"><input type="text" id="hrPin" maxlength="4" value="'+esc(v("maCaNhan"))+'" style="max-width:110px">'+
+      '<div class="btn-row"><input type="text" id="hrPin" maxlength="4" value="'+esc(v("maCaNhan"))+'" readonly style="max-width:110px;background:#f3f4f6;color:#6b7280;cursor:not-allowed">'+
       '<button class="btn ghost sm" id="hrGenPin" type="button">Tạo mã mới khi lưu</button></div>'+
       '<div class="hint" id="hrPinHint" style="margin-top:4px">Báo mã này cho nhân viên để họ đăng nhập.</div></div>'
     : '<div class="field"><label>Mã cá nhân</label>'+
@@ -1020,11 +1020,9 @@ function renderHRForm(emp){
       hrRegenPin = !hrRegenPin;
       var hint = $("#hrPinHint");
       if(hrRegenPin){
-        $("#hrPin").style.opacity=".45";
         $("#hrGenPin").textContent="Hủy tạo mã mới";
         hint.textContent="Khi lưu, hệ thống sẽ cấp mã 4 số mới và hiện cho quản lý.";
       } else {
-        $("#hrPin").style.opacity="1";
         $("#hrGenPin").textContent="Tạo mã mới khi lưu";
         hint.textContent="Báo mã này cho nhân viên để họ đăng nhập.";
       }
