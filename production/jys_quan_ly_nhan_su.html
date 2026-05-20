@@ -636,7 +636,7 @@ function loadEmpListForLogin(){
     return;
   }
   sel.innerHTML='<option value="">Đang tải danh sách…</option>';
-  call({params:{action:"listNames"}, loading:"Đang tải danh sách nhân viên…"}).then(function(res){
+  call({body:{action:"listNames"}, loading:"Đang tải danh sách nhân viên…"}).then(function(res){
     if(!res||!res.ok||!res.names||!res.names.length){
       sel.innerHTML='<option value="">Chưa có nhân viên nào</option>';
       return;
@@ -678,7 +678,7 @@ function doLogin(){
   if(loginMode==="mgr"){
     var code=$("#liMgr").value.trim();
     if(!code){ msg.className="login-msg err"; msg.textContent="Nhập mã quản lý"; return; }
-    call({params:{action:"loginManager",auth:code}, loading:"Đang kiểm tra mã quản lý…", busyBtn:btn}).then(function(res){
+    call({body:{action:"loginManager",auth:code}, loading:"Đang kiểm tra mã quản lý…", busyBtn:btn}).then(function(res){
       if(res && res.ok){
         SESSION={role:"manager",auth:code,empId:null};
         enterApp();
@@ -695,7 +695,7 @@ function doLogin(){
     var pin=$("#liPin").value.trim();
     if(!empId){ msg.className="login-msg err"; msg.textContent="Chọn tên của bạn"; return; }
     if(!/^\d{4}$/.test(pin)){ msg.className="login-msg err"; msg.textContent="Mã cá nhân gồm 4 chữ số"; return; }
-    call({params:{action:"loginStaff",empId:empId,auth:pin}, loading:"Đang đăng nhập…", busyBtn:btn}).then(function(res){
+    call({body:{action:"loginStaff",empId:empId,auth:pin}, loading:"Đang đăng nhập…", busyBtn:btn}).then(function(res){
       if(res && res.ok){
         SESSION={role:"staff",auth:pin,empId:empId};
         enterApp();
@@ -732,7 +732,7 @@ function enterApp(){
   if(SESSION.role==="manager"){
     $("#whoChip").textContent="Quản lý";
     $("#whoChip").className="chip mgr";
-    call({params:{action:"getAll",auth:SESSION.auth}, loading:"Đang tải dữ liệu…"}).then(function(res){
+    call({body:{action:"getAll",auth:SESSION.auth}, loading:"Đang tải dữ liệu…"}).then(function(res){
       if(!res||!res.ok){ $("#panels").innerHTML='<div class="center-load">Lỗi tải dữ liệu: '+esc((res&&res.error)||"")+'</div>'; return; }
       DATA.nhanvien=res.nhanvien||[];
       DATA.vipham=res.vipham||[];
