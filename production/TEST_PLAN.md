@@ -42,8 +42,10 @@ Người chạy: Codex (automation)   Ngày: 2026-05-20
 - [x] ❌ Mở lại sheet `NhanVien`: row mới có cột `maCaNhan` đúng mã đó, cột `createdAt` và `updatedAt` đã set.
 
 - [x] ❌ **Sửa** nhân viên "Test Một": đổi vị trí và lương 13.000.000, bấm Lưu. Hạng tự đổi sang **Bậc 3**. Hộp thoại mã **không hiện** (vì không có "Tạo mã mới"). Toast "Đã cập nhật hồ sơ".
-- [x] ❌ Field "Mã cá nhân" trong form sửa là **readonly** (không gõ được).
-- [x] ❌ Nhấn **Tạo mã mới khi lưu** → field PIN mờ đi. Bấm Lưu → hộp thoại mã mới hiện. Mã khác mã cũ. Sheet `NhanVien` cột `maCaNhan` đã đổi.
+- [x] ❌ Field `#hrPin` trong form sửa (mode **edit**) là **readonly** ngay khi mở form, không cho gõ/chỉnh sửa trực tiếp.
+- [x] ❌ Nhấn **Tạo mã mới khi lưu** (edit mode) → trạng thái readonly của `#hrPin` vẫn giữ nguyên; bấm Lưu → hộp thoại mã mới hiện. Mã mới khác mã cũ. Sheet `NhanVien` cột `maCaNhan` đã đổi.
+
+- [x] ❌ Evidence runtime bắt buộc cho mục readonly `#hrPin`: đính kèm (1) screenshot form sửa có thể hiện `#hrPin` không chỉnh được, (2) clip ngắn hoặc ảnh tuần tự khi thử gõ vào `#hrPin` nhưng giá trị không đổi, (3) Network/response + screenshot modal mã mới sau flow **Tạo mã mới khi lưu** để xác nhận luồng regenerate vẫn hoạt động.
 
 - [x] ❌ Thêm vài nhân viên khác ở các chi nhánh khác nhau (Vinh, Quảng Sơn).
 - [x] ❌ **Tìm**: gõ vào ô tìm kiếm → bảng lọc đúng.

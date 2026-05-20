@@ -936,6 +936,17 @@ function emptyBox(msg){ return '<div class="empty"><div class="big">Chưa có d�
    ===================================================================== */
 var hrEditId=null;
 var hrRegenPin=false;
+
+function applyHRPinInputMode(mode){
+  var pinInput = $("#hrPin");
+  if(!pinInput) return;
+  var isEdit = mode === "edit";
+  pinInput.readOnly = isEdit;
+  pinInput.style.background = isEdit ? "#f3f4f6" : "#fbfdfe";
+  pinInput.style.color = isEdit ? "#6b7280" : "inherit";
+  pinInput.style.cursor = isEdit ? "not-allowed" : "text";
+}
+
 function renderHR(p){
   p.innerHTML=''+
     '<div class="grid-side">'+
@@ -957,13 +968,14 @@ function renderHR(p){
   paintHRList();
 }
 
-function renderHRForm(emp){
+function renderHRForm(emp, mode){
+  var formMode = mode || (emp ? "edit" : "create");
   hrEditId=emp?emp.id:null;
   hrRegenPin=false;
   var v=function(k){return emp&&emp[k]!=null?emp[k]:"";};
-  var pinLine = emp
+  var pinLine = formMode === "edit"
     ? '<div class="field"><label>Mã cá nhân của nhân viên</label>'+
-      '<div class="btn-row"><input type="text" id="hrPin" maxlength="4" value="'+esc(v("maCaNhan"))+'" readonly style="max-width:110px;background:#f3f4f6;color:#6b7280;cursor:not-allowed">'+
+      '<div class="btn-row"><input type="text" id="hrPin" maxlength="4" value="'+esc(v("maCaNhan"))+'" style="max-width:110px">'+
       '<button class="btn ghost sm" id="hrGenPin" type="button">Tạo mã mới khi lưu</button></div>'+
       '<div class="hint" id="hrPinHint" style="margin-top:4px">Báo mã này cho nhân viên để họ đăng nhập.</div></div>'
     : '<div class="field"><label>Mã cá nhân</label>'+
@@ -1006,6 +1018,8 @@ function renderHRForm(emp){
     '<div class="btn-row"><button class="btn" id="hrSave">Lưu hồ sơ</button>'+
       (emp?'<button class="btn ghost" id="hrCancel">Hủy</button>':'')+'</div>';
 
+  applyHRPinInputMode(formMode);
+
   var sal=$("#hrSalary");
   function updRank(){
     var r=tinhHang(sal.value);
@@ -1014,7 +1028,7 @@ function renderHRForm(emp){
   sal.addEventListener("input",updRank); updRank();
 
   $("#hrSave").onclick=saveHR;
-  if(emp){
+  if(formMode === "edit"){
     $("#hrCancel").onclick=function(){ renderHRForm(null); };
     $("#hrGenPin").onclick=function(){
       hrRegenPin = !hrRegenPin;
@@ -1165,7 +1179,7 @@ function paintHRList(){
     }).join("")+'</tbody></table></div>';
 
   $("#hrList").querySelectorAll("[data-edit]").forEach(function(b){
-    b.onclick=function(){ renderHRForm(empById(b.dataset.edit)); window.scrollTo({top:0,behavior:"smooth"}); };
+    b.onclick=function(){ renderHRForm(empById(b.dataset.edit),"edit"); window.scrollTo({top:0,behavior:"smooth"}); };
   });
   $("#hrList").querySelectorAll("[data-view]").forEach(function(b){
     b.onclick=function(){ showProfileModal(empById(b.dataset.view)); };
