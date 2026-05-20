@@ -75,6 +75,7 @@ Người chạy: __________________   Ngày: __________
 - [ ] Tab **Hồ sơ của tôi**: thấy đầy đủ thông tin của chính mình, lương đúng, hạng đúng.
 - [ ] Tab **Lỗi của tôi**: thấy đúng các vi phạm của mình, không thấy của người khác.
 - [ ] Mở **Devtools → Network**, refresh tab: response từ backend **chỉ chứa profile và vipham của chính mình**, không có cả mảng `nhanvien`.
+- [ ] Trong Devtools → Network, các action xác thực (`loginManager`, `loginStaff`, `getAll`, `getMine`) được gửi bằng **POST** (không lộ auth trên query string URL).
 
 ## H. Kiểm tra (Quiz)
 

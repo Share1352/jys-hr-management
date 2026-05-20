@@ -88,11 +88,6 @@ function doGet(e) {
     var action = (e && e.parameter && e.parameter.action) || "";
     var p = (e && e.parameter) || {};
     switch (action) {
-      case "listNames":    return jsonOk_({names: listNames_()});
-      case "loginManager": return loginManager_(p.auth);
-      case "loginStaff":   return loginStaff_(p.empId, p.auth);
-      case "getAll":       return getAll_(p.auth);
-      case "getMine":      return getMine_(p.empId, p.auth);
       case "ping":         return jsonOk_({pong:true, ts: new Date().getTime()});
       default:             return jsonErr_("Hành động không hợp lệ: " + action);
     }
@@ -109,6 +104,11 @@ function doPost(e) {
     }
     var action = body.action || "";
     switch (action) {
+      case "listNames":      return jsonOk_({names: listNames_()});
+      case "loginManager":   return loginManager_(body.auth);
+      case "loginStaff":     return loginStaff_(body.empId, body.auth);
+      case "getAll":         return getAll_(body.auth);
+      case "getMine":        return getMine_(body.empId, body.auth);
       case "saveNhanVien":   return saveNhanVien_(body);
       case "deleteNhanVien": return deleteNhanVien_(body);
       case "saveViPham":     return saveViPham_(body);
@@ -156,6 +156,16 @@ function getStaffByCredentials_(empId, pin) {
   return null;
 }
 
+
+
+function getEmpById_(empId) {
+  if (!empId) return null;
+  var rows = readSheet_(SHEET_NHANVIEN);
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i].id) === String(empId)) return rows[i];
+  }
+  return null;
+}
 
 /* ============================================================
  * READ HELPERS
@@ -374,6 +384,7 @@ function saveViPham_(body) {
     rec.qty = Number(rec.qty) || 1;
     rec.amount = Number(rec.amount) || 0;
     rec.createdAt = rec.createdAt || new Date().toISOString();
+    rec.ts = Number(rec.ts) || Date.now();
     rec.createdBy = "manager";
 
     var existingRow = rowIndexById_(SHEET_VIPHAM, rec.id);
@@ -428,6 +439,13 @@ function saveKiemTra_(body) {
     rec.passed = rec.passed ? "1" : "";
     rec.createdAt = rec.createdAt || new Date().toISOString();
     rec.date = rec.date || new Date().toISOString().slice(0,10);
+    rec.ts = Number(rec.ts) || Date.now();
+    var empRow = getEmpById_(rec.empId);
+    if (empRow) {
+      rec.name = rec.name || empRow.hoTen || "";
+      rec.branch = rec.branch || empRow.chiNhanh || "";
+      rec.pos = rec.pos || empRow.viTri || "";
+    }
     // answersJson optional
     if (rec.answersJson && typeof rec.answersJson !== "string") {
       rec.answersJson = JSON.stringify(rec.answersJson);
