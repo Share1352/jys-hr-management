@@ -701,7 +701,8 @@ function doLogin(){
         enterApp();
       } else {
         msg.className="login-msg err";
-        msg.textContent=(res&&res.error)||"Sai mã cá nhân";
+        var rawErr=(res&&res.error)||"";
+        msg.textContent=/mã\s*demo/i.test(rawErr)?"Sai mã cá nhân":(rawErr||"Sai mã cá nhân");
       }
     }).catch(function(){
       msg.className="login-msg err";
