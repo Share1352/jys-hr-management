@@ -38,6 +38,13 @@ Repo này là **private** và **không bao giờ chứa secrets**.
 | `API_URL` (link Apps Script `/exec`) | Chỉ dán vào **bản HTML đã deploy** (file copy trên host). | Commit URL thật vào repo. Repo giữ placeholder `__API_URL__`. |
 | `MANAGER_CODE` | Apps Script → **Project Settings → Script Properties**. | Hardcode trong `Code.gs`, README, docs, hoặc bất kỳ file nào trong repo. |
 
+
+### Quy tắc token GitHub (bắt buộc)
+
+- **Không bao giờ** dán token (PAT, fine-grained PAT, OAuth token, App token) vào issue, PR comment, chat, commit message, hoặc bất kỳ file nào trong repo.
+- Nếu lộ token, phải xử lý theo thứ tự: **(1) revoke ngay trên GitHub**, **(2) audit phạm vi truy cập và logs**, **(3) chỉ tạo token mới khi thực sự cần**, với quyền tối thiểu đúng theo repo/action cần dùng.
+- Không dùng token “full access” cho tác vụ thường ngày. Ưu tiên fine-grained token, giới hạn repo cụ thể, quyền read/write tối thiểu, và thời hạn ngắn.
+
 ### Quy ước placeholder
 
 - `production/jys_quan_ly_nhan_su.html` phải luôn chứa:
