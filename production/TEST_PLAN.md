@@ -66,6 +66,7 @@ Người chạy: __________________   Ngày: __________
 - [ ] Lọc theo nhân viên / theo tháng / theo từ khoá → bảng đáp ứng đúng.
 - [ ] **Xuất CSV** → file tải về có dòng tổng cộng, mở Excel hiện đúng tiếng Việt (BOM UTF-8).
 - [ ] **Xóa** một bản ghi vi phạm → mất khỏi bảng và khỏi sheet `ViPham`.
+- [ ] Mở sheet `ViPham`: bản ghi vừa lưu có `empId`, `date`, `ts`, `code`, `qty`, `amount`, `createdAt` đúng với dữ liệu runtime (kèm ảnh/chụp màn hình làm evidence).
 
 ## G. Đăng nhập nhân viên & quyền
 
@@ -84,6 +85,7 @@ Người chạy: __________________   Ngày: __________
 - [ ] Bảng lịch sử ở trang quiz hiện điểm mới.
 - [ ] **Xóa** một kết quả → mất khỏi bảng và khỏi sheet `KiemTra`.
 - [ ] Tab **Kiểm tra** (nhân viên): tự làm cho chính mình. Lưu xong, sheet `KiemTra` có dòng mới với đúng `empId` của mình.
+- [ ] Mở sheet `KiemTra`: bản ghi vừa lưu có `empId`, `name`, `branch`, `pos`, `date`, `ts`, `score`, `total`, `passed`, `createdAt` đúng với dữ liệu runtime (kèm ảnh/chụp màn hình làm evidence).
 
 ## I. Lỗi mạng / backend
 

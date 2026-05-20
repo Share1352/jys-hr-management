@@ -26,8 +26,8 @@ var COLS_NHANVIEN = [
   "luongThang","quyenLoiKhac","ghiChu",
   "active","createdAt","updatedAt"
 ];
-var COLS_VIPHAM = ["id","empId","date","code","qty","amount","note","createdAt","createdBy"];
-var COLS_KIEMTRA = ["id","empId","date","score","total","passed","answersJson","createdAt"];
+var COLS_VIPHAM = ["id","empId","date","ts","code","qty","amount","note","createdAt","createdBy"];
+var COLS_KIEMTRA = ["id","empId","name","branch","pos","date","ts","score","total","passed","answersJson","createdAt"];
 var COLS_AUDIT  = ["id","ts","actorRole","actorId","action","targetSheet","targetId","detailsJson"];
 
 var BRANCHES = ["Đô Lương", "Vinh", "Quảng Sơn"];
