@@ -278,14 +278,14 @@
       </div>
       <div class="login-field">
         <label>Mã cá nhân <span class="hint">(4 số do quản lý cấp)</span></label>
-        <input type="text" id="liPin" inputmode="numeric" maxlength="4" placeholder="••••">
+        <input type="text" id="liPin" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
     </div>
 
     <div id="loginMgr" style="display:none">
       <div class="login-field">
         <label>Mã quản lý</label>
-        <input type="password" id="liMgr" placeholder="Nhập mã quản lý">
+        <input type="password" id="liMgr" placeholder="Nhập mã quản lý" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
     </div>
 
@@ -701,7 +701,8 @@ function doLogin(){
         enterApp();
       } else {
         msg.className="login-msg err";
-        msg.textContent=(res&&res.error)||"Sai mã cá nhân";
+        var rawErr=(res&&res.error)||"";
+        msg.textContent=/mã\s*demo/i.test(rawErr)?"Sai mã cá nhân":(rawErr||"Sai mã cá nhân");
       }
     }).catch(function(){
       msg.className="login-msg err";
@@ -764,7 +765,8 @@ var TABS_MANAGER=[
   {id:"hr",     label:"Hồ sơ nhân sự"},
   {id:"log",    label:"Ghi nhận vi phạm"},
   {id:"cat",    label:"Danh mục lỗi"},
-  {id:"quiz",   label:"Kiểm tra"}
+  {id:"quiz",   label:"Kiểm tra"},
+  {id:"admin",  label:"Quản trị mã"}
 ];
 var TABS_STAFF=[
   {id:"me",     label:"Hồ sơ của tôi"},
@@ -799,8 +801,44 @@ function renderTab(id){
   if(id==="quiz")   return renderQuiz(p);
   if(id==="me")     return renderMe(p);
   if(id==="myviol") return renderMyViol(p);
+  if(id==="admin")  return renderAdminCodes(p);
 }
 
+
+
+var ADMIN_SESSION={ok:false};
+function renderAdminCodes(p){
+  if(!ADMIN_SESSION.ok){
+    p.innerHTML=''+
+      '<div class="card card-pad" style="max-width:520px">'+
+      '<div class="card-h">Quản trị mã đăng nhập</div>'+
+      '<div class="field"><label>Tài khoản admin</label><input type="text" id="adUser" autocomplete="off"></div>'+
+      '<div class="field"><label>Mật khẩu admin</label><input type="password" id="adPass" autocomplete="new-password"></div>'+
+      '<div class="btn-row"><button class="btn" id="adLogin">Đăng nhập</button></div>'+
+      '<div class="muted-text" id="adMsg"></div></div>';
+    $("#adLogin").onclick=function(){
+      call({body:{action:"adminLogin",auth:SESSION.auth,user:$("#adUser").value.trim(),pass:$("#adPass").value},loading:"Đang xác thực admin…"}).then(function(res){
+        if(res&&res.ok){ADMIN_SESSION.ok=true; renderAdminCodes(p);}
+        else $("#adMsg").textContent=(res&&res.error)||"Đăng nhập thất bại";
+      }).catch(function(){ $("#adMsg").textContent=NET_ERR; });
+    };
+    return;
+  }
+  call({body:{action:"adminGetCodes",auth:SESSION.auth},loading:"Đang tải mã…"}).then(function(res){
+    if(!res||!res.ok){ p.innerHTML='<div class="card card-pad">Lỗi: '+esc((res&&res.error)||"")+'</div>'; return; }
+    var rows=res.rows||[];
+    p.innerHTML='<div class="card card-pad"><div class="card-h">Mã đăng nhập</div>'+
+      '<div class="field"><label>Mã quản lý</label><input id="adminMgrCode" type="text" value="'+esc(res.managerCode||'')+'"></div>'+
+      '<div class="table-scroll"><table><thead><tr><th>Nhân viên</th><th>Mã NV</th><th>Mã cá nhân</th></tr></thead><tbody>'+
+      rows.map(function(r){ return '<tr><td>'+esc(r.hoTen||'')+'</td><td>'+esc(r.maNV||'')+'</td><td><input data-pin="'+esc(r.id)+'" maxlength="4" value="'+esc(r.maCaNhan||'')+'"></td></tr>'; }).join('')+
+      '</tbody></table></div><div class="btn-row" style="margin-top:12px"><button class="btn" id="adSave">Lưu tất cả mã</button><button class="btn ghost" id="adLogout">Đăng xuất admin</button></div></div>';
+    $("#adLogout").onclick=function(){ADMIN_SESSION.ok=false; renderAdminCodes(p);};
+    $("#adSave").onclick=function(){
+      var updates=rows.map(function(r){ var el=document.querySelector('[data-pin="'+r.id+'"]'); return {id:r.id,maCaNhan:el?el.value.trim():''}; });
+      call({body:{action:"adminSaveCodes",auth:SESSION.auth,managerCode:$("#adminMgrCode").value.trim(),updates:updates},loading:"Đang lưu mã…"}).then(function(r){ toast(r&&r.ok?"Đã lưu mã":"Lỗi lưu mã"); if(r&&r.ok) renderAdminCodes(p); }).catch(function(){toast(NET_ERR);});
+    };
+  }).catch(function(){ p.innerHTML='<div class="card card-pad">'+esc(NET_ERR)+'</div>'; });
+}
 /* =====================================================================
    QUẢN LÝ — Tổng quan
    ===================================================================== */

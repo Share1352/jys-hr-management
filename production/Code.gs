@@ -124,6 +124,9 @@ function routeAction_(body) {
     case "deleteViPham":   return deleteViPham_(body);
     case "saveKiemTra":    return saveKiemTra_(body);
     case "deleteKiemTra":  return deleteKiemTra_(body);
+    case "adminLogin":     return adminLogin_(body.auth, body.user, body.pass);
+    case "adminGetCodes":  return adminGetCodes_(body.auth);
+    case "adminSaveCodes": return adminSaveCodes_(body.auth, body.managerCode, body.updates);
     default:               return jsonErr_("Hành động không hợp lệ: " + action);
   }
 }
@@ -538,4 +541,34 @@ function jsonErr_(msg) {
   return ContentService
     .createTextOutput(JSON.stringify({ok:false, error: msg || "Lỗi không xác định"}))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+function getAdminUser_(){ return PropertiesService.getScriptProperties().getProperty("ADMIN_USER") || ""; }
+function getAdminPass_(){ return PropertiesService.getScriptProperties().getProperty("ADMIN_PASS") || ""; }
+function adminLogin_(auth,user,pass){
+  requireManager_(auth);
+  if(!getAdminUser_()||!getAdminPass_()) return jsonErr_("Chưa cấu hình ADMIN_USER/ADMIN_PASS trong Script Properties");
+  if(String(user)!==String(getAdminUser_())||String(pass)!==String(getAdminPass_())) return jsonErr_("Sai tài khoản admin");
+  return jsonOk_({ok:true});
+}
+function adminGetCodes_(auth){
+  requireManager_(auth);
+  var rows=readSheet_(SHEET_NHANVIEN).map(function(r){ return {id:r.id,hoTen:r.hoTen,maNV:r.maNV,maCaNhan:r.maCaNhan}; });
+  return jsonOk_({rows:rows, managerCode:getManagerCode_()});
+}
+function adminSaveCodes_(auth,managerCode,updates){
+  requireManager_(auth);
+  if(!/^\d{4}$/.test(String(managerCode||""))) return jsonErr_("Mã quản lý phải gồm 4 chữ số");
+  PropertiesService.getScriptProperties().setProperty("MANAGER_CODE", String(managerCode));
+  updates=(updates||[]);
+  updates.forEach(function(u){
+    if(!/^\d{4}$/.test(String(u.maCaNhan||""))) throw new Error("Mã cá nhân phải gồm 4 chữ số");
+    var row=rowIndexById_(SHEET_NHANVIEN, u.id); if(row<2) return;
+    var sh=sh_(SHEET_NHANVIEN);
+    var headers=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+    var pinCol=headers.indexOf("maCaNhan")+1;
+    if(pinCol>0) sh.getRange(row,pinCol).setValue(String(u.maCaNhan));
+  });
+  return jsonOk_({ok:true});
 }
