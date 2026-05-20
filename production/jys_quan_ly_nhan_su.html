@@ -738,7 +738,7 @@ function enterApp(){
       DATA.nhanvien=res.nhanvien||[];
       DATA.vipham=res.vipham||[];
       DATA.kiemtra=res.kiemtra||[];
-      activateTab("dash");
+      activateTab(tabFromUrl_()||"dash");
     }).catch(function(){
       $("#panels").innerHTML='<div class="center-load">'+esc(NET_ERR)+'</div>';
     });
@@ -750,7 +750,7 @@ function enterApp(){
       MINE.kiemtra=res.kiemtra||[];
       $("#whoChip").textContent=MINE.profile?MINE.profile.hoTen:"Nhân viên";
       $("#whoChip").className="chip";
-      activateTab("me");
+      activateTab(tabFromUrl_()||"me");
     }).catch(function(){
       $("#panels").innerHTML='<div class="center-load">'+esc(NET_ERR)+'</div>';
     });
@@ -786,7 +786,26 @@ function buildTabs(){
     nav.appendChild(b);
   });
 }
+function canActivateTab(id){
+  return curTabs().some(function(t){ return t.id===id; });
+}
+function tabFromUrl_(){
+  var h=(location.hash||"").replace(/^#/,"").trim();
+  if(h && canActivateTab(h)) return h;
+  var q=new URLSearchParams(location.search||"");
+  var tab=(q.get("tab")||"").trim();
+  if(tab && canActivateTab(tab)) return tab;
+  return "";
+}
+function setTabUrl_(id){
+  var u=new URL(location.href);
+  u.searchParams.set("tab",id);
+  u.hash=id;
+  history.replaceState(null,"",u.toString());
+}
 function activateTab(id){
+  if(!canActivateTab(id)) id=curTabs()[0].id;
+  setTabUrl_(id);
   document.querySelectorAll(".tab").forEach(function(x){
     x.classList.toggle("active",x.dataset.tab===id);
   });
@@ -815,6 +834,7 @@ function renderAdminCodes(p){
       '<div class="field"><label>Tài khoản admin</label><input type="text" id="adUser" autocomplete="off"></div>'+
       '<div class="field"><label>Mật khẩu admin</label><input type="password" id="adPass" autocomplete="new-password"></div>'+
       '<div class="btn-row"><button class="btn" id="adLogin">Đăng nhập</button></div>'+
+      '<div class="muted-text" style="margin-top:8px">Liên kết trực tiếp: <code>?tab=admin#admin</code></div>'+
       '<div class="muted-text" id="adMsg"></div></div>';
     $("#adLogin").onclick=function(){
       call({body:{action:"adminLogin",auth:SESSION.auth,user:$("#adUser").value.trim(),pass:$("#adPass").value},loading:"Đang xác thực admin…"}).then(function(res){
