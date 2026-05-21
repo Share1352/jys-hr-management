@@ -111,6 +111,34 @@ Người chạy: Codex (automation)   Ngày: 2026-05-20
 - [x] ❌ Modal mã cá nhân hiện vừa màn hình.
 - [x] ❌ Bàn phím số tự bật khi gõ ô PIN 4 số.
 
+## L. Lương tháng (LuongThang) — quản lý lương thực tế mỗi tháng
+
+> Yêu cầu nghiệp vụ: mỗi nhân viên có thể có **lương thực tế khác nhau từng tháng**. Hạng nghề nghiệp tính trên **trung bình** các tháng đã ghi nhận. `NhanVien.luongThang` còn lại là lương mặc định / fallback.
+
+- [ ] **L.1 — khoiTaoSheet tạo sheet `LuongThang`.** Mở Apps Script editor, chạy `khoiTaoSheet()`. Mở Google Sheet: có tab mới tên `LuongThang` với header hàng 1: `id, empId, month, luongThucTe, ghiChu, createdAt, updatedAt, createdBy`. Thông báo trả về của `khoiTaoSheet()` có chứa `"LuongThang"`.
+- [ ] **L.2 — Manager tạo bản ghi lương tháng mới.** Đăng nhập quản lý → tab **Lương tháng**. Khung trái: chọn nhân viên "Test Một", tháng `2026-04`, lương `9.000.000`, ghi chú "test L.2", bấm **Lưu lương tháng**. Toast "Đã ghi lương tháng". Bảng bên phải có dòng mới. Mở sheet `LuongThang`: 1 row mới với đúng `empId`, `month=2026-04`, `luongThucTe=9000000`, `createdAt` và `updatedAt` đã set.
+- [ ] **L.3 — Lưu cùng empId + tháng = update, không tạo trùng.** Vẫn nhân viên "Test Một", tháng `2026-04`, đổi lương thành `10.500.000`, ghi chú "đã điều chỉnh", **Lưu**. Toast "Đã cập nhật lương tháng". Sheet `LuongThang`: vẫn **đúng 1 row** cho (Test Một, 2026-04), `luongThucTe=10500000`, `createdAt` không đổi, `updatedAt` mới hơn. Audit log có 1 row `updateLuongThang`.
+- [ ] **L.4 — Manager xóa bản ghi lương tháng.** Trong bảng, nhấn **Xóa** ở dòng vừa tạo, confirm. Toast "Đã xóa lương tháng". Sheet `LuongThang`: row đó **biến mất hoàn toàn** (không chỉ ẩn). Audit log có row `deleteLuongThang`.
+- [ ] **L.5 — Staff chỉ thấy bản ghi của riêng mình.** Manager tạo 2 bản ghi lương tháng cho 2 nhân viên khác nhau (A và B). Đăng xuất, đăng nhập với tư cách nhân viên A. Trong tab **Hồ sơ của tôi**: phần "Lương tháng đã ghi nhận" chỉ liệt kê các tháng của A, **không có B**. Mở Devtools → Network → request `getMine`: response chỉ chứa `luongthang` của A, **không có** rows của B.
+- [ ] **L.6 — `getAll` trả về `luongthang` cho manager.** Đăng nhập quản lý → mở Devtools Network, refresh tab Tổng quan. Request `getAll` response JSON có khóa `luongthang` là **array đầy đủ** tất cả bản ghi.
+- [ ] **L.7 — `getMine` lọc đúng theo empId.** Như L.5, response `getMine` chỉ có `luongthang` với `empId` khớp người đăng nhập. Gọi trực tiếp `?action=getMine` với PIN sai → backend từ chối (như hiện tại).
+- [ ] **L.8 — Hạng dùng trung bình lương tháng khi có bản ghi.** Manager thêm 3 bản ghi cho "Test Một": `2026-01 = 8.000.000`, `2026-02 = 12.000.000`, `2026-03 = 16.000.000`. Trung bình = 12.000.000 → kỳ vọng **Bậc 3**. Mở modal Xem hồ sơ "Test Một": "Lương trung bình/tháng" hiển thị **12.000.000 đ** kèm "(trung bình của 3 tháng)"; banner hạng = **Bậc 3**. Trong tab Hồ sơ nhân sự, dòng "Test Một" cột Hạng có pill **Bậc 3** + "3 tháng".
+- [ ] **L.9 — Fallback về `NhanVien.luongThang` khi chưa có bản ghi.** Xoá hết bản ghi `LuongThang` của một nhân viên (vd "Test Hai") có `NhanVien.luongThang = 9.000.000`. Mở modal hồ sơ: "Lương tháng (mặc định)" hiển thị 9.000.000 + "(chưa có dữ liệu lương theo tháng)". Banner hạng = **Bậc 2**. Trong tab Hồ sơ nhân sự, dòng "Test Hai" cột Hạng = pill **Bậc 2**, **không có** chú thích "N tháng".
+- [ ] **L.10 — Không commit secrets.** Chạy ở repo root:
+  ```bash
+  grep -RIn --exclude-dir=.git -E 'script\.google\.com/macros/s/[A-Za-z0-9_-]{20,}' . || true
+  grep -RIn --exclude-dir=.git 'var API_URL = "https' production || true
+  grep -RIn --exclude-dir=.git -E 'MANAGER_CODE\s*=\s*"[^_<]' production || true
+  ```
+  Cả ba lệnh **không in ra kết quả nào**. `production/jys_quan_ly_nhan_su.html` vẫn chứa nguyên `var API_URL = "__API_URL__";`.
+
+**Phụ — validation phụ trên UI:**
+
+- [ ] Bỏ trống nhân viên/tháng/lương khi lưu → toast lỗi tương ứng, không call backend.
+- [ ] Nhập lương âm → toast "Nhập lương thực tế (≥ 0)".
+- [ ] Bộ lọc theo nhân viên / theo tháng / từ khoá hoạt động đúng. Nút "Xoá bộ lọc" reset cả ba.
+- [ ] Sau khi lưu/xóa, bảng cập nhật **không cần reload** trang.
+
 ---
 
 ## Đánh dấu kết quả tổng

@@ -14,10 +14,11 @@
  * ============================================================ */
 
 /* ----- Hằng số ----- */
-var SHEET_NHANVIEN = "NhanVien";
-var SHEET_VIPHAM   = "ViPham";
-var SHEET_KIEMTRA  = "KiemTra";
-var SHEET_AUDIT    = "AuditLog";
+var SHEET_NHANVIEN   = "NhanVien";
+var SHEET_VIPHAM     = "ViPham";
+var SHEET_KIEMTRA    = "KiemTra";
+var SHEET_LUONGTHANG = "LuongThang";
+var SHEET_AUDIT      = "AuditLog";
 
 var COLS_NHANVIEN = [
   "id","maNV","hoTen","maCaNhan","chiNhanh","viTri",
@@ -26,9 +27,10 @@ var COLS_NHANVIEN = [
   "luongThang","quyenLoiKhac","ghiChu",
   "active","createdAt","updatedAt"
 ];
-var COLS_VIPHAM = ["id","empId","date","ts","code","qty","amount","note","createdAt","createdBy"];
-var COLS_KIEMTRA = ["id","empId","name","branch","pos","date","ts","score","total","passed","answersJson","createdAt"];
-var COLS_AUDIT  = ["id","ts","actorRole","actorId","action","targetSheet","targetId","detailsJson"];
+var COLS_VIPHAM     = ["id","empId","date","ts","code","qty","amount","note","createdAt","createdBy"];
+var COLS_KIEMTRA    = ["id","empId","name","branch","pos","date","ts","score","total","passed","answersJson","createdAt"];
+var COLS_LUONGTHANG = ["id","empId","month","luongThucTe","ghiChu","createdAt","updatedAt","createdBy"];
+var COLS_AUDIT      = ["id","ts","actorRole","actorId","action","targetSheet","targetId","detailsJson"];
 
 var BRANCHES = ["Đô Lương", "Vinh", "Quảng Sơn"];
 
@@ -39,10 +41,11 @@ var BRANCHES = ["Đô Lương", "Vinh", "Quảng Sơn"];
  * ============================================================ */
 function khoiTaoSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  ensureSheet_(ss, SHEET_NHANVIEN, COLS_NHANVIEN);
-  ensureSheet_(ss, SHEET_VIPHAM,   COLS_VIPHAM);
-  ensureSheet_(ss, SHEET_KIEMTRA,  COLS_KIEMTRA);
-  ensureSheet_(ss, SHEET_AUDIT,    COLS_AUDIT);
+  ensureSheet_(ss, SHEET_NHANVIEN,   COLS_NHANVIEN);
+  ensureSheet_(ss, SHEET_VIPHAM,     COLS_VIPHAM);
+  ensureSheet_(ss, SHEET_KIEMTRA,    COLS_KIEMTRA);
+  ensureSheet_(ss, SHEET_LUONGTHANG, COLS_LUONGTHANG);
+  ensureSheet_(ss, SHEET_AUDIT,      COLS_AUDIT);
 
   // MANAGER_CODE phải được đặt thủ công trong Script Properties.
   // KHÔNG đặt giá trị mặc định ở đây — tránh commit mã quản lý vào repo.
@@ -50,7 +53,7 @@ function khoiTaoSheet() {
   if (!props.getProperty("MANAGER_CODE")) {
     throw new Error("Chưa cấu hình MANAGER_CODE. Vào Project Settings > Script Properties và thêm property MANAGER_CODE trước khi chạy khoiTaoSheet().");
   }
-  return "Đã khởi tạo xong các sheet: " + [SHEET_NHANVIEN,SHEET_VIPHAM,SHEET_KIEMTRA,SHEET_AUDIT].join(", ");
+  return "Đã khởi tạo xong các sheet: " + [SHEET_NHANVIEN,SHEET_VIPHAM,SHEET_KIEMTRA,SHEET_LUONGTHANG,SHEET_AUDIT].join(", ");
 }
 
 function ensureSheet_(ss, name, cols) {
@@ -124,6 +127,8 @@ function routeAction_(body) {
     case "deleteViPham":   return deleteViPham_(body);
     case "saveKiemTra":    return saveKiemTra_(body);
     case "deleteKiemTra":  return deleteKiemTra_(body);
+    case "saveLuongThang":   return saveLuongThang_(body);
+    case "deleteLuongThang": return deleteLuongThang_(body);
     case "adminLogin":     return adminLogin_(body.auth, body.user, body.pass);
     case "adminGetCodes":  return adminGetCodes_(body.auth);
     case "adminSaveCodes": return adminSaveCodes_(body.auth, body.managerCode, body.updates);
@@ -273,9 +278,10 @@ function loginStaff_(empId, auth) {
 function getAll_(auth) {
   if (!isManager_(auth)) return jsonErr_("Mã quản lý không đúng");
   return jsonOk_({
-    nhanvien: readSheet_(SHEET_NHANVIEN).filter(function(r){ return String(r.active||"1") !== "0"; }),
-    vipham:   readSheet_(SHEET_VIPHAM),
-    kiemtra:  readSheet_(SHEET_KIEMTRA)
+    nhanvien:   readSheet_(SHEET_NHANVIEN).filter(function(r){ return String(r.active||"1") !== "0"; }),
+    vipham:     readSheet_(SHEET_VIPHAM),
+    kiemtra:    readSheet_(SHEET_KIEMTRA),
+    luongthang: readSheet_(SHEET_LUONGTHANG)
   });
 }
 
@@ -284,9 +290,10 @@ function getMine_(empId, auth) {
   if (!emp) return jsonErr_("Sai mã cá nhân");
   // Đừng để lộ maCaNhan của người khác — nhưng đây là chính mình nên ok
   var profile = emp;
-  var vipham  = readSheet_(SHEET_VIPHAM).filter(function(v){ return String(v.empId) === String(empId); });
-  var kiemtra = readSheet_(SHEET_KIEMTRA).filter(function(k){ return String(k.empId) === String(empId); });
-  return jsonOk_({profile: profile, vipham: vipham, kiemtra: kiemtra});
+  var vipham     = readSheet_(SHEET_VIPHAM).filter(function(v){ return String(v.empId) === String(empId); });
+  var kiemtra    = readSheet_(SHEET_KIEMTRA).filter(function(k){ return String(k.empId) === String(empId); });
+  var luongthang = readSheet_(SHEET_LUONGTHANG).filter(function(l){ return String(l.empId) === String(empId); });
+  return jsonOk_({profile: profile, vipham: vipham, kiemtra: kiemtra, luongthang: luongthang});
 }
 
 function saveNhanVien_(body) {
@@ -483,6 +490,84 @@ function deleteKiemTra_(body) {
     var rowNum = rowIndexById_(SHEET_KIEMTRA, id);
     if (rowNum > 0) deleteRow_(SHEET_KIEMTRA, rowNum);
     audit_("manager", "", "deleteKiemTra", SHEET_KIEMTRA, id, {});
+    return jsonOk_({deleted: id});
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
+/* ============================================================
+ * ACTIONS — manager: monthly actual salary (LuongThang)
+ * empId + month is unique. Saving the same pair updates in place.
+ * ============================================================ */
+function saveLuongThang_(body) {
+  requireManager_(body.auth);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    var rec = body.record || {};
+    if (!rec.empId) return jsonErr_("Thiếu empId");
+    if (!rec.month || !/^\d{4}-\d{2}$/.test(String(rec.month))) {
+      return jsonErr_("Tháng không hợp lệ. Định dạng đúng: YYYY-MM");
+    }
+    if (rec.luongThucTe == null || rec.luongThucTe === "") {
+      return jsonErr_("Thiếu lương thực tế");
+    }
+    var amount = Number(rec.luongThucTe);
+    if (isNaN(amount) || amount < 0) {
+      return jsonErr_("Lương thực tế phải là số không âm");
+    }
+    var empRow = getEmpById_(rec.empId);
+    if (!empRow) return jsonErr_("Không tìm thấy nhân viên");
+
+    // Look up by explicit id first, then by empId+month uniqueness.
+    var existingRow = -1;
+    var existingRec = null;
+    if (rec.id) existingRow = rowIndexById_(SHEET_LUONGTHANG, rec.id);
+    if (existingRow < 0) {
+      var all = readSheet_(SHEET_LUONGTHANG);
+      for (var i = 0; i < all.length; i++) {
+        if (String(all[i].empId) === String(rec.empId) &&
+            String(all[i].month) === String(rec.month)) {
+          existingRec = all[i];
+          rec.id = existingRec.id;
+          existingRow = rowIndexById_(SHEET_LUONGTHANG, existingRec.id);
+          break;
+        }
+      }
+    }
+
+    var nowIso = new Date().toISOString();
+    var isUpdate = existingRow > 0;
+    if (!rec.id) rec.id = uid_();
+    rec.luongThucTe = amount;
+    rec.ghiChu = rec.ghiChu || "";
+    rec.createdAt = (existingRec && existingRec.createdAt) || rec.createdAt || nowIso;
+    rec.updatedAt = nowIso;
+    rec.createdBy = "manager";
+
+    if (isUpdate) updateRow_(SHEET_LUONGTHANG, existingRow, rec);
+    else appendRow_(SHEET_LUONGTHANG, rec);
+
+    audit_("manager", "", isUpdate ? "updateLuongThang" : "createLuongThang",
+      SHEET_LUONGTHANG, rec.id, {empId: rec.empId, month: rec.month, luongThucTe: amount});
+    return jsonOk_({record: rec, isUpdate: isUpdate});
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteLuongThang_(body) {
+  requireManager_(body.auth);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    var id = body.id;
+    if (!id) return jsonErr_("Thiếu id");
+    var rowNum = rowIndexById_(SHEET_LUONGTHANG, id);
+    if (rowNum > 0) deleteRow_(SHEET_LUONGTHANG, rowNum);
+    audit_("manager", "", "deleteLuongThang", SHEET_LUONGTHANG, id, {});
     return jsonOk_({deleted: id});
   } finally {
     lock.releaseLock();

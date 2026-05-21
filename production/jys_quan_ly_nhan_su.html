@@ -418,6 +418,35 @@ function tinhHang(luong){
   for(var i=0;i<RANKS.length;i++){ if(l>=RANKS[i].min) idx=i; }
   return {idx:idx, ten:RANKS[idx].ten, desc:RANKS[idx].desc};
 }
+/* Lương hiệu lực = trung bình các tháng đã có luongThucTe (>=0).
+   Nếu không có bản ghi tháng nào thì fallback về NhanVien.luongThang.
+   Tháng trống không tính là 0. */
+function effectiveSalary(emp, sourceRecs){
+  if(!emp) return {amount:0, count:0, source:"static"};
+  var src = sourceRecs;
+  if(!src){
+    src = SESSION && SESSION.role==="manager" ? DATA.luongthang : MINE.luongthang;
+  }
+  if(!src) src = [];
+  var recs = src.filter(function(l){
+    if(String(l.empId)!==String(emp.id)) return false;
+    var v = l.luongThucTe;
+    if(v===null || v===undefined || v==="") return false;
+    var n = Number(v);
+    return !isNaN(n) && n>=0;
+  });
+  if(recs.length){
+    var total=0;
+    for(var i=0;i<recs.length;i++){ total += Number(recs[i].luongThucTe); }
+    return {amount: total/recs.length, count: recs.length, source:"avg"};
+  }
+  return {amount: Number(emp.luongThang)||0, count:0, source:"static"};
+}
+function tinhHangFromEmp(emp, sourceRecs){
+  var es = effectiveSalary(emp, sourceRecs);
+  var r = tinhHang(es.amount);
+  return {idx:r.idx, ten:r.ten, desc:r.desc, avg:es.amount, count:es.count, source:es.source};
+}
 
 /* ===== Ngân hàng câu hỏi kiểm tra ===== */
 var QUIZ_BANK=[
@@ -486,8 +515,8 @@ var QUIZ_TOTAL=QUIZ_BANK.length, QUIZ_PASS=16;
 
 /* ===== Trạng thái ứng dụng ===== */
 var SESSION={ role:null, auth:null, empId:null };  // role: "manager" | "staff"
-var DATA={ nhanvien:[], vipham:[], kiemtra:[] };    // dữ liệu quản lý
-var MINE={ profile:null, vipham:[], kiemtra:[] };   // dữ liệu nhân viên
+var DATA={ nhanvien:[], vipham:[], kiemtra:[], luongthang:[] };    // dữ liệu quản lý
+var MINE={ profile:null, vipham:[], kiemtra:[], luongthang:[] };   // dữ liệu nhân viên
 
 /* ===== Tiện ích ===== */
 var $=function(s){return document.querySelector(s);};
@@ -713,8 +742,8 @@ function doLogin(){
 
 $("#btnLogout").onclick=function(){
   SESSION={role:null,auth:null,empId:null};
-  DATA={nhanvien:[],vipham:[],kiemtra:[]};
-  MINE={profile:null,vipham:[],kiemtra:[]};
+  DATA={nhanvien:[],vipham:[],kiemtra:[],luongthang:[]};
+  MINE={profile:null,vipham:[],kiemtra:[],luongthang:[]};
   $("#appShell").style.display="none";
   $("#loginShell").style.display="flex";
   $("#liPin").value=""; $("#liMgr").value="";
@@ -738,6 +767,7 @@ function enterApp(){
       DATA.nhanvien=res.nhanvien||[];
       DATA.vipham=res.vipham||[];
       DATA.kiemtra=res.kiemtra||[];
+      DATA.luongthang=res.luongthang||[];
       activateTab(tabFromUrl_()||"dash");
     }).catch(function(){
       $("#panels").innerHTML='<div class="center-load">'+esc(NET_ERR)+'</div>';
@@ -748,6 +778,7 @@ function enterApp(){
       MINE.profile=res.profile||null;
       MINE.vipham=res.vipham||[];
       MINE.kiemtra=res.kiemtra||[];
+      MINE.luongthang=res.luongthang||[];
       $("#whoChip").textContent=MINE.profile?MINE.profile.hoTen:"Nhân viên";
       $("#whoChip").className="chip";
       activateTab(tabFromUrl_()||"me");
@@ -764,6 +795,7 @@ var TABS_MANAGER=[
   {id:"dash",   label:"Tổng quan"},
   {id:"hr",     label:"Hồ sơ nhân sự"},
   {id:"log",    label:"Ghi nhận vi phạm"},
+  {id:"luong",  label:"Lương tháng"},
   {id:"cat",    label:"Danh mục lỗi"},
   {id:"quiz",   label:"Kiểm tra"},
   {id:"admin",  label:"Quản trị mã"}
@@ -816,6 +848,7 @@ function renderTab(id){
   if(id==="dash")   return renderDash(p);
   if(id==="hr")     return renderHR(p);
   if(id==="log")    return renderLog(p);
+  if(id==="luong")  return renderLuong(p);
   if(id==="cat")    return renderCatalog(p);
   if(id==="quiz")   return renderQuiz(p);
   if(id==="me")     return renderMe(p);
@@ -1221,12 +1254,12 @@ function paintHRList(){
     '<th>Họ tên</th><th>Chi nhánh</th><th>Vị trí</th><th>Hạng</th>'+
     '<th class="num">Thâm niên</th><th class="num">Mã CN</th><th></th>'+
     '</tr></thead><tbody>'+rows.map(function(e){
-      var r=tinhHang(e.luongThang);
+      var r=tinhHangFromEmp(e);
       return '<tr>'+
         '<td><strong>'+esc(e.hoTen)+'</strong>'+(e.maNV?'<br><span class="muted-text" style="font-size:12px">'+esc(e.maNV)+'</span>':'')+'</td>'+
         '<td><span class="pill br">'+esc(e.chiNhanh)+'</span></td>'+
         '<td>'+(esc(e.viTri)||'<span class="muted-text">—</span>')+'</td>'+
-        '<td><span class="pill rank">'+r.ten+'</span></td>'+
+        '<td><span class="pill rank">'+r.ten+'</span>'+(r.source==="avg"?'<br><span class="muted-text" style="font-size:11px">'+r.count+' tháng</span>':'')+'</td>'+
         '<td class="num">'+chuoiThamNien(e.ngayVaoLam)+'</td>'+
         '<td class="num"><strong>'+esc(e.maCaNhan)+'</strong></td>'+
         '<td class="num" style="white-space:nowrap">'+
@@ -1265,7 +1298,7 @@ function delHR(e){
 /* xem nhanh hồ sơ đầy đủ trong hộp thoại */
 function showProfileModal(e){
   if(!e) return;
-  var r=tinhHang(e.luongThang);
+  var r=tinhHangFromEmp(e);
   var html=profileBlock(e,r,true);
   var ov=document.createElement("div");
   ov.style.cssText="position:fixed;inset:0;background:rgba(20,24,29,.55);z-index:95;display:flex;align-items:center;justify-content:center;padding:20px";
@@ -1290,7 +1323,16 @@ function profileBlock(e,r,withName){
       '<div class="muted-text" style="margin-bottom:14px">'+esc(e.viTri||"")+
       (e.chiNhanh?' · '+esc(e.chiNhanh):'')+'</div>'
     : '';
-  var luongNam=(Number(e.luongThang)||0)*12;
+  var avgSalary = r && r.source==="avg" ? Number(r.avg)||0 : (Number(e.luongThang)||0);
+  var luongNam = avgSalary*12;
+  var avgLabel = r && r.source==="avg"
+    ? "Lương trung bình/tháng"
+    : "Lương tháng (mặc định)";
+  var avgValue = '<span class="money-cell">'+fmtMoney(avgSalary)+'</span>'+
+    (r && r.source==="avg"
+      ? ' <span class="muted-text" style="font-size:12px">(trung bình của '+r.count+' tháng)</span>'
+      : ' <span class="muted-text" style="font-size:12px">(chưa có dữ liệu lương theo tháng)</span>');
+  var yearLabel = r && r.source==="avg" ? "Tổng lương năm (ước tính)" : "Tổng lương năm";
   return nameHead+
     '<div class="rank-banner"><div>'+
       '<div class="rd">Hạng nghề nghiệp</div>'+
@@ -1318,8 +1360,8 @@ function profileBlock(e,r,withName){
     '</div>'+
     '<div class="card-h" style="margin-top:18px">Lương và quyền lợi</div>'+
     '<div class="prof-grid">'+
-      row("Lương tháng",'<span class="money-cell">'+fmtMoney(e.luongThang)+'</span>')+
-      row("Tổng lương năm",'<span class="money-cell">'+fmtMoney(luongNam)+'</span>')+
+      row(avgLabel,avgValue)+
+      row(yearLabel,'<span class="money-cell">'+fmtMoney(luongNam)+'</span>')+
     '</div>'+
     '<div class="prof-row"><span class="pk">Quyền lợi khác</span></div>'+
     '<div style="font-size:13px;padding:6px 0 2px">'+(esc(e.quyenLoiKhac)||'<span class="muted-text">Chưa ghi nhận</span>')+'</div>'+
@@ -1518,6 +1560,171 @@ function exportCSV(){
 }
 
 /* =====================================================================
+   QUẢN LÝ — Lương tháng (LuongThang)
+   ===================================================================== */
+var luEditId=null;
+function renderLuong(p){
+  p.innerHTML=''+
+    '<div class="grid-side">'+
+      '<div class="card card-pad" id="luFormCard"></div>'+
+      '<div>'+
+        '<div class="filter-bar">'+
+          '<div class="field"><label>Nhân viên</label><select id="luFilterEmp"></select></div>'+
+          '<div class="field"><label>Tháng</label><input type="month" id="luFilterMonth" value=""></div>'+
+          '<div class="field" style="flex:1;min-width:150px"><label>Tìm kiếm</label>'+
+            '<input type="text" id="luSearch" placeholder="Tên, ghi chú, tháng…"></div>'+
+        '</div>'+
+        '<div class="btn-row" style="margin-bottom:12px;justify-content:space-between">'+
+          '<span class="muted-text" id="luSummary"></span>'+
+          '<button class="btn ghost sm" id="luClearFilters" type="button">Xoá bộ lọc</button>'+
+        '</div>'+
+        '<div id="luList"></div>'+
+      '</div>'+
+    '</div>';
+  fillEmpSelect("#luFilterEmp",true);
+  renderLuongForm(null);
+  ["#luFilterMonth","#luSearch"].forEach(function(s){
+    $(s).addEventListener("input",paintLuongList);
+  });
+  $("#luFilterEmp").addEventListener("change",paintLuongList);
+  $("#luClearFilters").onclick=function(){
+    $("#luFilterEmp").value="";
+    $("#luFilterMonth").value="";
+    $("#luSearch").value="";
+    paintLuongList();
+  };
+  paintLuongList();
+}
+
+function renderLuongForm(rec){
+  luEditId = rec ? rec.id : null;
+  var v=function(k){return rec&&rec[k]!=null?rec[k]:"";};
+  $("#luFormCard").innerHTML=''+
+    '<div class="card-h">'+(rec?"Sửa lương tháng":"Ghi lương tháng mới")+'</div>'+
+    '<div class="field"><label>Nhân viên</label><select id="luEmp"></select></div>'+
+    '<div class="row c2">'+
+      '<div class="field"><label>Tháng (YYYY-MM)</label>'+
+        '<input type="month" id="luMonth" value="'+esc(v("month")||monthISO())+'"></div>'+
+      '<div class="field"><label>Lương thực tế (đ)</label>'+
+        '<input type="number" id="luAmt" min="0" step="100000" value="'+esc(v("luongThucTe"))+'" placeholder="VD: 9500000"></div>'+
+    '</div>'+
+    '<div class="field"><label>Ghi chú <span class="hint">(tuỳ chọn)</span></label>'+
+      '<textarea id="luNote" placeholder="VD: có thưởng dự án X, trừ phép…">'+esc(v("ghiChu"))+'</textarea></div>'+
+    '<div class="btn-row">'+
+      '<button class="btn" id="luSave" type="button">'+(rec?"Cập nhật":"Lưu lương tháng")+'</button>'+
+      (rec?'<button class="btn ghost" id="luCancel" type="button">Hủy</button>':'')+
+    '</div>'+
+    '<div class="hint" style="margin-top:8px">Một nhân viên chỉ có một bản ghi mỗi tháng. Lưu lại tháng đã có sẽ cập nhật bản ghi cũ.</div>';
+  fillEmpSelect("#luEmp");
+  if(rec) $("#luEmp").value = rec.empId;
+  $("#luSave").onclick=saveLuong;
+  if(rec){
+    $("#luCancel").onclick=function(){ renderLuongForm(null); };
+  }
+}
+
+function saveLuong(){
+  var empId=$("#luEmp").value;
+  var month=$("#luMonth").value;
+  var amt=$("#luAmt").value;
+  if(!empId){ toast("Chọn nhân viên"); return; }
+  if(!/^\d{4}-\d{2}$/.test(String(month))){ toast("Tháng không hợp lệ (YYYY-MM)"); return; }
+  if(amt==="" || isNaN(Number(amt)) || Number(amt)<0){ toast("Nhập lương thực tế (≥ 0)"); return; }
+  var rec={
+    id: luEditId || uid(),
+    empId: empId,
+    month: month,
+    luongThucTe: Number(amt),
+    ghiChu: $("#luNote").value.trim()
+  };
+  var btn=$("#luSave");
+  call({body:{action:"saveLuongThang",auth:SESSION.auth,record:rec}, loading:"Đang lưu lương tháng…", busyBtn:btn}).then(function(res){
+    if(!res||!res.ok){ toast("Lỗi lưu: "+((res&&res.error)||"")); return; }
+    var saved=res.record||rec;
+    var arr=DATA.luongthang||[];
+    var i=-1;
+    for(var k=0;k<arr.length;k++){
+      if(String(arr[k].id)===String(saved.id) ||
+         (String(arr[k].empId)===String(saved.empId) && String(arr[k].month)===String(saved.month))){
+        i=k; break;
+      }
+    }
+    if(i>=0) arr[i]=saved; else arr.push(saved);
+    DATA.luongthang=arr;
+    renderLuongForm(null);
+    paintLuongList();
+    toast(res.isUpdate?"Đã cập nhật lương tháng":"Đã ghi lương tháng");
+  }).catch(function(){ toast(NET_ERR); });
+}
+
+function delLuong(rec){
+  if(!rec) return;
+  var emp=empById(rec.empId);
+  var who=emp?emp.hoTen:rec.empId;
+  if(!confirm('Xóa lương tháng '+rec.month+' của "'+who+'"?')) return;
+  call({body:{action:"deleteLuongThang",auth:SESSION.auth,id:rec.id}, loading:"Đang xóa…"}).then(function(res){
+    if(!res||!res.ok){ toast("Lỗi xóa: "+((res&&res.error)||"")); return; }
+    DATA.luongthang=(DATA.luongthang||[]).filter(function(x){return String(x.id)!==String(rec.id);});
+    if(luEditId===rec.id) renderLuongForm(null);
+    toast("Đã xóa lương tháng");
+    paintLuongList();
+  }).catch(function(){ toast(NET_ERR); });
+}
+
+function paintLuongList(){
+  var fEmp=$("#luFilterEmp").value;
+  var fMonth=$("#luFilterMonth").value;
+  var q=($("#luSearch").value||"").trim().toLowerCase();
+  var rows=(DATA.luongthang||[]).slice().sort(function(a,b){
+    var bm=String(b.month||""), am=String(a.month||"");
+    if(bm!==am) return bm.localeCompare(am);
+    var be=String(empById(b.empId)?empById(b.empId).hoTen:""), ae=String(empById(a.empId)?empById(a.empId).hoTen:"");
+    return ae.localeCompare(be,"vi");
+  });
+  if(fEmp) rows=rows.filter(function(l){return String(l.empId)===String(fEmp);});
+  if(fMonth) rows=rows.filter(function(l){return String(l.month)===String(fMonth);});
+  if(q) rows=rows.filter(function(l){
+    var emp=empById(l.empId);
+    var who=emp?emp.hoTen+" "+(emp.chiNhanh||""):"";
+    return (who+" "+(l.month||"")+" "+(l.ghiChu||"")).toLowerCase().indexOf(q)>=0;
+  });
+  var totalAmt=rows.reduce(function(s,l){return s+(Number(l.luongThucTe)||0);},0);
+  $("#luSummary").textContent=rows.length+" bản ghi · tổng "+fmtMoney(totalAmt);
+  if(!rows.length){
+    $("#luList").innerHTML='<div class="card card-pad">'+emptyBox("Chưa có bản ghi lương tháng nào khớp. Ghi mới ở khung bên trái.")+'</div>';
+    return;
+  }
+  $("#luList").innerHTML='<div class="table-scroll"><table><thead><tr>'+
+    '<th>Nhân viên</th><th>Chi nhánh</th><th>Tháng</th>'+
+    '<th class="num">Lương thực tế</th><th>Ghi chú</th><th></th>'+
+    '</tr></thead><tbody>'+rows.map(function(l){
+      var emp=empById(l.empId);
+      return '<tr>'+
+        '<td><strong>'+esc(emp?emp.hoTen:"(đã xóa)")+'</strong>'+(emp&&emp.maNV?'<br><span class="muted-text" style="font-size:12px">'+esc(emp.maNV)+'</span>':'')+'</td>'+
+        '<td>'+(emp&&emp.chiNhanh?'<span class="pill br">'+esc(emp.chiNhanh)+'</span>':'<span class="muted-text">—</span>')+'</td>'+
+        '<td>'+esc(l.month)+'</td>'+
+        '<td class="num"><span class="money-cell">'+fmtMoney(l.luongThucTe)+'</span></td>'+
+        '<td>'+(esc(l.ghiChu)||'<span class="muted-text">—</span>')+'</td>'+
+        '<td class="num" style="white-space:nowrap">'+
+          '<button class="icon-btn" data-luedit="'+esc(l.id)+'">Sửa</button>'+
+          '<button class="icon-btn" data-ludel="'+esc(l.id)+'">Xóa</button></td>'+
+      '</tr>';
+    }).join("")+'</tbody></table></div>';
+  $("#luList").querySelectorAll("[data-luedit]").forEach(function(b){
+    b.onclick=function(){
+      var rec=(DATA.luongthang||[]).filter(function(x){return String(x.id)===String(b.dataset.luedit);})[0];
+      if(rec){ renderLuongForm(rec); window.scrollTo({top:0,behavior:"smooth"}); }
+    };
+  });
+  $("#luList").querySelectorAll("[data-ludel]").forEach(function(b){
+    b.onclick=function(){
+      var rec=(DATA.luongthang||[]).filter(function(x){return String(x.id)===String(b.dataset.ludel);})[0];
+      delLuong(rec);
+    };
+  });
+}
+
+/* =====================================================================
    DANH MỤC LỖI — dùng chung
    ===================================================================== */
 function renderCatalog(p){
@@ -1547,9 +1754,31 @@ function renderCatalog(p){
 function renderMe(p){
   if(!MINE.profile){ p.innerHTML='<div class="card card-pad">'+emptyBox("Không tải được hồ sơ.")+'</div>'; return; }
   var e=MINE.profile;
-  var r=tinhHang(e.luongThang);
+  var r=tinhHangFromEmp(e,MINE.luongthang);
   p.innerHTML='<div class="card card-pad" style="max-width:620px;margin:0 auto">'+
-    profileBlock(e,r,true)+'</div>';
+    profileBlock(e,r,true)+
+    renderMyLuongBlock_()+
+    '</div>';
+}
+/* Bảng lương tháng riêng của nhân viên đang đăng nhập (chỉ đọc) */
+function renderMyLuongBlock_(){
+  var rows=(MINE.luongthang||[]).slice().sort(function(a,b){
+    return String(b.month).localeCompare(String(a.month));
+  });
+  if(!rows.length){
+    return '<div class="card-h" style="margin-top:18px">Lương tháng đã ghi nhận</div>'+
+      '<div class="muted-text" style="font-size:13px">Chưa có bản ghi lương theo tháng. Lương tháng mặc định ở trên là cơ sở tính hạng cho đến khi có dữ liệu thực tế.</div>';
+  }
+  return '<div class="card-h" style="margin-top:18px">Lương tháng đã ghi nhận</div>'+
+    '<div class="table-scroll"><table><thead><tr>'+
+      '<th>Tháng</th><th class="num">Lương thực tế</th><th>Ghi chú</th>'+
+    '</tr></thead><tbody>'+rows.map(function(l){
+      return '<tr>'+
+        '<td>'+esc(l.month)+'</td>'+
+        '<td class="num"><span class="money-cell">'+fmtMoney(l.luongThucTe)+'</span></td>'+
+        '<td>'+(esc(l.ghiChu)||'<span class="muted-text">—</span>')+'</td>'+
+      '</tr>';
+    }).join("")+'</tbody></table></div>';
 }
 
 /* =====================================================================
