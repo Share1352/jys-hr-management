@@ -34,24 +34,34 @@ jobs:
           WIX_EMBED_ID: ${{ vars.WIX_EMBED_ID || '516cefe5-e0bb-4b1c-9d06-5bb16dd6482f' }}
         run: node scripts/deploy-wix.mjs
 
-      - name: Smoke-test live page
-        # Use a cache-buster query string so Wix's edge SSR cache returns a
-        # fresh render of the Custom Embed we just PATCHed. Without it the
-        # CDN may serve the previous render for 1-5 minutes after deploy.
+      - name: Smoke-test bundle
+        # Verifies the file uploaded by the deploy step is reachable on Wix's
+        # CDN and contains an injected Apps Script URL (not the placeholder).
+        # The live page at /?app=jys-hr may still serve the previous render
+        # for 1-5 minutes due to Wix's SSR cache; that catches up on its own.
         run: |
-          set -euo pipefail
-          CB="_cb=$(date +%s)"
-          BUNDLE_URL=$(curl -fsSL "https://www.jysenglish.com/?app=jys-hr&${CB}" \
-            | grep -oE 'https://[a-z0-9-]+\.usrfiles\.com/ugd/[a-f0-9_~mv2-]+\.(txt|html)' \
-            | head -1)
-          echo "Live BUNDLE_URL: $BUNDLE_URL"
-          test -n "$BUNDLE_URL"
-          curl -fsSI "$BUNDLE_URL" | head -5
-          BUNDLE_BODY=$(curl -fsSL "$BUNDLE_URL")
-          if echo "$BUNDLE_BODY" | grep -q '__API_URL__'; then
-            echo "FAIL: placeholder __API_URL__ still in live bundle" >&2; exit 1
+          set -eu
+          BUNDLE_URL=$(node -e "
+            (async () => {
+              const r = await fetch('https://www.wixapis.com/embeds/v1/custom-embeds/${{ vars.WIX_EMBED_ID || '516cefe5-e0bb-4b1c-9d06-5bb16dd6482f' }}', {
+                headers: { Authorization: process.env.WIX_API_KEY, 'wix-site-id': '${{ vars.WIX_SITE_ID || 'a3bfa336-e918-48e6-831b-82ed7ff178f5' }}' },
+              });
+              const j = await r.json();
+              const html = j.customEmbed?.embedData?.html || '';
+              const m = html.match(/BUNDLE_URL = \"([^\"]+)\"/);
+              if (!m) { process.exit(2); }
+              process.stdout.write(m[1]);
+            })().catch(e => { console.error(e); process.exit(3); });
+          ")
+          echo "Embed BUNDLE_URL: $BUNDLE_URL"
+          curl -fsSL "$BUNDLE_URL" -o /tmp/bundle.txt
+          ls -l /tmp/bundle.txt
+          if grep -q '__API_URL__' /tmp/bundle.txt; then
+            echo "FAIL: placeholder __API_URL__ still in deployed bundle" >&2; exit 1
           fi
-          if ! echo "$BUNDLE_BODY" | grep -qE 'API_URL = "https://script\.google\.com/'; then
-            echo "FAIL: injected API_URL does not look like an Apps Script /exec URL" >&2; exit 1
+          if ! grep -qE 'var API_URL = "https://script\.google\.com/macros/s/[^"]+/exec";' /tmp/bundle.txt; then
+            echo "FAIL: deployed bundle has no Apps Script /exec URL" >&2; exit 1
           fi
-          echo "Live bundle OK."
+          echo "Bundle OK. Live page propagates as Wix CDN cache expires."
+        env:
+          WIX_API_KEY: ${{ secrets.WIX_API_KEY }}
