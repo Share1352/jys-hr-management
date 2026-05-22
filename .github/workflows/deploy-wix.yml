@@ -1,0 +1,54 @@
+name: Deploy HR bundle to Wix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "production/jys_quan_ly_nhan_su.html"
+      - "scripts/deploy-wix.mjs"
+      - ".github/workflows/deploy-wix.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-wix
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Deploy bundle to Wix Media + repoint Custom Embed
+        env:
+          WIX_API_KEY:  ${{ secrets.WIX_API_KEY }}
+          API_URL:      ${{ secrets.API_URL }}
+          WIX_SITE_ID:  ${{ vars.WIX_SITE_ID  || 'a3bfa336-e918-48e6-831b-82ed7ff178f5' }}
+          WIX_EMBED_ID: ${{ vars.WIX_EMBED_ID || '516cefe5-e0bb-4b1c-9d06-5bb16dd6482f' }}
+        run: node scripts/deploy-wix.mjs
+
+      - name: Smoke-test live page
+        run: |
+          set -euo pipefail
+          BUNDLE_URL=$(curl -fsSL "https://www.jysenglish.com/?app=jys-hr" \
+            | grep -oE 'https://[a-z0-9-]+\.usrfiles\.com/ugd/[a-f0-9_~mv2-]+\.(txt|html)' \
+            | head -1)
+          echo "Live BUNDLE_URL: $BUNDLE_URL"
+          test -n "$BUNDLE_URL"
+          curl -fsSI "$BUNDLE_URL" | head -5
+          BUNDLE_BODY=$(curl -fsSL "$BUNDLE_URL")
+          # Sanity: injected API_URL must not be placeholder, must look like Apps Script URL.
+          if echo "$BUNDLE_BODY" | grep -q '__API_URL__'; then
+            echo "FAIL: placeholder __API_URL__ still in live bundle" >&2; exit 1
+          fi
+          if ! echo "$BUNDLE_BODY" | grep -qE 'API_URL = "https://script\.google\.com/'; then
+            echo "FAIL: injected API_URL does not look like an Apps Script /exec URL" >&2; exit 1
+          fi
+          echo "Live bundle OK."
