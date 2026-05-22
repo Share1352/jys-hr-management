@@ -84,11 +84,16 @@ async function main() {
   console.log(`Bundle: ${injected.length} bytes  |  fileName: ${fileName}`);
 
   // 2a. Generate upload URL.
+  //
+  // Wix Media's gateway rejects `text/html` uploads (security policy: prevents
+  // using Media Manager as an HTML host). Upload as text/plain with a .txt
+  // file name; the Velo launcher fetches the body and blob-URLs it as
+  // text/html inside an iframe, so the MIME on Wix's side does not matter.
   console.log("→ generate-upload-url");
   const gen = await wixJson(
     "POST",
     "https://www.wixapis.com/site-media/v1/files/generate-upload-url",
-    { mimeType: "text/html", fileName, parentFolderId: "media-root" },
+    { mimeType: "text/plain", fileName, parentFolderId: "media-root" },
   );
   const uploadUrl = gen.uploadUrl;
   if (!uploadUrl) throw new Error(`No uploadUrl in response: ${JSON.stringify(gen)}`);
@@ -98,7 +103,7 @@ async function main() {
   const putUrl = `${uploadUrl}?filename=${encodeURIComponent(fileName)}`;
   const putRes = await fetch(putUrl, {
     method: "PUT",
-    headers: { "Content-Type": "text/html" },
+    headers: { "Content-Type": "text/plain" },
     body: injected,
   });
   const putText = await putRes.text();
