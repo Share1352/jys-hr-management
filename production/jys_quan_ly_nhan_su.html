@@ -830,10 +830,15 @@ function tabFromUrl_(){
   return "";
 }
 function setTabUrl_(id){
-  var u=new URL(location.href);
-  u.searchParams.set("tab",id);
-  u.hash=id;
-  history.replaceState(null,"",u.toString());
+  // history.replaceState throws "SecurityError: The operation is insecure"
+  // when the document was loaded from a blob: URL (e.g. the Wix launcher
+  // blob-iframes the bundle). Swallow that — tab state in URL is best-effort.
+  try {
+    var u=new URL(location.href);
+    u.searchParams.set("tab",id);
+    u.hash=id;
+    history.replaceState(null,"",u.toString());
+  } catch(_) {}
 }
 function activateTab(id){
   if(!canActivateTab(id)) id=curTabs()[0].id;
