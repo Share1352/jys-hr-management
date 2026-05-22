@@ -35,16 +35,19 @@ jobs:
         run: node scripts/deploy-wix.mjs
 
       - name: Smoke-test live page
+        # Use a cache-buster query string so Wix's edge SSR cache returns a
+        # fresh render of the Custom Embed we just PATCHed. Without it the
+        # CDN may serve the previous render for 1-5 minutes after deploy.
         run: |
           set -euo pipefail
-          BUNDLE_URL=$(curl -fsSL "https://www.jysenglish.com/?app=jys-hr" \
+          CB="_cb=$(date +%s)"
+          BUNDLE_URL=$(curl -fsSL "https://www.jysenglish.com/?app=jys-hr&${CB}" \
             | grep -oE 'https://[a-z0-9-]+\.usrfiles\.com/ugd/[a-f0-9_~mv2-]+\.(txt|html)' \
             | head -1)
           echo "Live BUNDLE_URL: $BUNDLE_URL"
           test -n "$BUNDLE_URL"
           curl -fsSI "$BUNDLE_URL" | head -5
           BUNDLE_BODY=$(curl -fsSL "$BUNDLE_URL")
-          # Sanity: injected API_URL must not be placeholder, must look like Apps Script URL.
           if echo "$BUNDLE_BODY" | grep -q '__API_URL__'; then
             echo "FAIL: placeholder __API_URL__ still in live bundle" >&2; exit 1
           fi
