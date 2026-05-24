@@ -31,20 +31,20 @@ jobs:
       - name: Validate no secret leakage
         run: |
           set -euo pipefail
-          rg -n "script\.google\.com/macros/s/[A-Za-z0-9_-]{20,}" . && { echo "Found committed Apps Script URL" >&2; exit 1; } || true
-          rg -n -P "var\s+API_URL\s*=\s*\"(?!__API_URL__)[^\"]+\";" production/jys_quan_ly_nhan_su.html && { echo "Found hardcoded API URL" >&2; exit 1; } || true
-          rg -n -S "MANAGER_CODE\s*=\s*['\"][^'\"]+['\"]|old-shared-manager-code|Mã demo|Demo:" production/Code.gs production/jys_quan_ly_nhan_su.html && { echo "Found hardcoded manager code/demo credential" >&2; exit 1; } || true
+          grep -RIn -E 'script\.google\.com/macros/s/[A-Za-z0-9_-]{20,}' . && { echo "Found committed Apps Script URL" >&2; exit 1; } || true
+          grep -nP 'var\s+API_URL\s*=\s*"(?!__API_URL__)[^"]+";' production/jys_quan_ly_nhan_su.html && { echo "Found hardcoded API URL" >&2; exit 1; } || true
+          grep -nE 'MANAGER_CODE\s*=\s*["'][^"']+["']|old-shared-manager-code|Mã demo|Demo:' production/Code.gs production/jys_quan_ly_nhan_su.html && { echo "Found hardcoded manager code/demo credential" >&2; exit 1; } || true
 
       - name: Build deploy artifact
         env:
           HR_API_URL: ${{ secrets.HR_API_URL }}
         run: |
           set -euo pipefail
-          test -n "${HR_API_URL:-}" || { echo "Missing secret HR_API_URL" >&2; exit 1; }
+          test -n "${HR_API_URL:-}" || { echo "Missing secret HR_API_URL. Set repository or environment secret HR_API_URL to your Apps Script /exec URL." >&2; exit 1; }
           mkdir -p "$ARTIFACT_DIR"
           cp "$SOURCE_HTML" "$ARTIFACT_HTML"
           sed -i "s|__API_URL__|${HR_API_URL}|g" "$ARTIFACT_HTML"
-          ! rg -n "__API_URL__" "$ARTIFACT_HTML"
+          ! grep -n "__API_URL__" "$ARTIFACT_HTML"
 
       - name: Upload deploy artifact
         uses: actions/upload-artifact@v4
