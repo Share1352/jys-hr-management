@@ -18,6 +18,11 @@ jobs:
       SOURCE_HTML: production/jys_quan_ly_nhan_su.html
       ARTIFACT_DIR: deploy
       ARTIFACT_HTML: deploy/jys_quan_ly_nhan_su.html
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
 
     steps:
       - name: Checkout repository
@@ -49,16 +54,16 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         id: deploy_cloudflare
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && secrets.CLOUDFLARE_PROJECT_NAME != '' }}
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && env.CLOUDFLARE_PROJECT_NAME != '' }}
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy deploy --project-name=${{ secrets.CLOUDFLARE_PROJECT_NAME }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy deploy --project-name=${{ env.CLOUDFLARE_PROJECT_NAME }}
 
       - name: Deploy to Netlify
         id: deploy_netlify
-        if: ${{ steps.deploy_cloudflare.outcome != 'success' && secrets.NETLIFY_AUTH_TOKEN != '' && secrets.NETLIFY_SITE_ID != '' }}
+        if: ${{ steps.deploy_cloudflare.outcome != 'success' && env.NETLIFY_AUTH_TOKEN != '' && env.NETLIFY_SITE_ID != '' }}
         uses: nwtgck/actions-netlify@v3.0
         with:
           publish-dir: ./deploy
@@ -66,8 +71,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           deploy-message: "Deploy from GitHub Actions #${{ github.run_number }}"
         env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ env.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ env.NETLIFY_SITE_ID }}
 
       - name: Resolve deployed URL
         id: deployed_url
