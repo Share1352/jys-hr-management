@@ -1,12 +1,45 @@
 # Hướng dẫn cài đặt trang Wix `/quan-ly-nhan-su`
 
+## 0. Canonical route policy (bắt buộc)
+
+Từ nay chỉ có **một URL chuẩn** cho HR app:
+
+```
+https://www.jysenglish.com/quan-ly-nhan-su
+```
+
+- Nếu vẫn cần giữ công khai link cũ `https://www.jysenglish.com/?app=jys-hr`, phải cấu hình để link này **luôn chuyển hướng xác định** về `/quan-ly-nhan-su`.
+- **Cutoff deprecation:** sau **2026-07-31 (UTC)**, không được truyền thông hoặc vận hành bất kỳ đường dẫn HR nào khác ngoài `/quan-ly-nhan-su`.
+
+### Cách cấu hình redirect deterministic trên Wix
+
+Ưu tiên theo thứ tự sau:
+
+1. **Wix Redirect Manager (SEO Tools):**
+   - Source: `/?app=jys-hr`
+   - Target: `/quan-ly-nhan-su`
+   - Type: **301 Permanent Redirect**
+
+2. **Wix Router / Site code fallback** (nếu query redirect không map được trong UI):
+   - Trong Velo site code (`masterPage.js` hoặc router), đọc query `app`.
+   - Nếu `app === "jys-hr"` thì `wixLocation.to('/quan-ly-nhan-su')` ngay khi page load.
+   - Không render app thứ hai ở homepage; chỉ điều hướng về đúng route chuẩn.
+
+### Checklist xác nhận canonical
+
+- Mở `https://www.jysenglish.com/?app=jys-hr` phải luôn về đúng `/quan-ly-nhan-su`.
+- Mở trực tiếp `https://www.jysenglish.com/quan-ly-nhan-su` vào đúng cùng một app instance.
+- Chỉ publish cho nhân viên URL `/quan-ly-nhan-su`.
+
+---
+
 Tài liệu này hướng dẫn đặt app HR JYS lên Wix tại địa chỉ cuối cùng:
 
 ```
 https://www.jysenglish.com/quan-ly-nhan-su
 ```
 
-**Quan trọng:** đường dẫn `?app=jys-hr` và `#jys-hr` là tạm thời. Không dùng làm link chính thức cho nhân viên.
+**Quan trọng:** `https://www.jysenglish.com/quan-ly-nhan-su` là URL chính thức duy nhất cho nhân viên.
 
 ---
 
@@ -113,12 +146,12 @@ App có scroll bên trong. Trang Wix bao ngoài cũng có scroll. Để tránh h
 
 ---
 
-## 7. Đừng dùng các URL tạm sau làm link chính thức
+## 7. Đường dẫn cũ (deprecated) và mốc ngừng dùng
 
-- `https://www.jysenglish.com/?app=jys-hr` ❌
-- `https://www.jysenglish.com/#jys-hr` ❌
+- `https://www.jysenglish.com/?app=jys-hr` → phải redirect về `/quan-ly-nhan-su` đến hết **2026-07-31 (UTC)**.
+- `https://www.jysenglish.com/#jys-hr` → ngừng hỗ trợ, không phát hành cho người dùng.
 
-Chỉ truyền cho nhân viên đúng địa chỉ:
+Sau **2026-07-31 (UTC)**, chỉ được dùng:
 
 ```
 https://www.jysenglish.com/quan-ly-nhan-su

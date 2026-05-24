@@ -57,6 +57,13 @@ Repo này là **private** và **không bao giờ chứa secrets**.
 
 ---
 
+## Canonical HR URL policy (Wix)
+
+- Canonical route duy nhất cho staff: `https://www.jysenglish.com/quan-ly-nhan-su`.
+- Nếu phải giữ public link cũ `https://www.jysenglish.com/?app=jys-hr`, Wix phải cấu hình **deterministic redirect** (301 hoặc router logic) để luôn chuyển về `/quan-ly-nhan-su`.
+- `https://www.jysenglish.com/#jys-hr` được xem là deprecated và không dùng cho vận hành.
+- **Cutoff date:** sau **2026-07-31 (UTC)**, tài liệu nội bộ và truyền thông vận hành chỉ được dùng canonical route `/quan-ly-nhan-su`.
+
 ## Triển khai (tóm tắt)
 
 Xem chi tiết trong `production/HUONG_DAN_CAI_DAT.md`. Tóm tắt:
@@ -74,7 +81,9 @@ Xem chi tiết trong `production/HUONG_DAN_CAI_DAT.md`. Tóm tắt:
    - Upload file đã sửa lên static host (Cloudflare Pages, GitHub Pages, hoặc host bất kỳ).
 
 3. **Wix embed**
-   - Trong Wix Editor → Add → Embed → HTML iframe → trỏ tới URL bản frontend.
+   - Trong Wix Editor, dùng trang slug `/quan-ly-nhan-su` làm route chuẩn duy nhất cho staff.
+   - Nếu duy trì `?app=jys-hr`, bắt buộc redirect deterministic về `/quan-ly-nhan-su`.
+   - Add → Embed → HTML iframe → trỏ tới URL bản frontend.
    - Xem `production/WIX_PAGE_SETUP.md`.
 
 4. **QA**
