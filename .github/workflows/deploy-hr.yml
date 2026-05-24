@@ -1,8 +1,7 @@
-name: Deploy HR App
+# ENVIRONMENT: PREVIEW / ARCHIVE ONLY (non-canonical; must not be used for production authority)
+name: Deploy HR App (Preview Only)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

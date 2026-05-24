@@ -1,3 +1,4 @@
+# ENVIRONMENT: PRODUCTION (canonical HR deploy for Wix runtime /quan-ly-nhan-su)
 name: Deploy HR bundle to Wix
 
 on:
