@@ -31,6 +31,28 @@ https://www.jysenglish.com/quan-ly-nhan-su
 - Mở trực tiếp `https://www.jysenglish.com/quan-ly-nhan-su` vào đúng cùng một app instance.
 - Chỉ publish cho nhân viên URL `/quan-ly-nhan-su`.
 
+
+## Production deployment authority (single source)
+
+### Canonical runtime URL
+
+- **Canonical runtime URL:** `https://www.jysenglish.com/quan-ly-nhan-su`
+- `https://www.jysenglish.com/?app=jys-hr` is legacy inbound only and must always redirect to canonical route.
+
+### Canonical CI workflow file
+
+- **Canonical production workflow:** `.github/workflows/deploy-wix.yml`
+- `.github/workflows/deploy-hr.yml` is preview/archive only (manual run) and must not be used as production authority.
+
+### Fallback/rollback process
+
+1. Roll back by re-running `.github/workflows/deploy-wix.yml` from the last known-good commit.
+2. Validate the custom embed bundle on Wix is reachable and has an injected Apps Script `/exec` URL (no `__API_URL__`).
+3. Re-check both URLs:
+   - `https://www.jysenglish.com/quan-ly-nhan-su`
+   - `https://www.jysenglish.com/?app=jys-hr` → redirects to canonical route.
+4. If redirect fails, restore Redirect Manager (301) or Velo router redirect and republish.
+
 ---
 
 Tài liệu này hướng dẫn đặt app HR JYS lên Wix tại địa chỉ cuối cùng:

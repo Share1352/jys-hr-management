@@ -111,3 +111,25 @@ Khuyến nghị vận hành:
 - **Chưa enable GitHub Pages.** Sẽ chỉ bật sau khi các blocker trong issue *"Blocking fixes before deployment"* được fix và `TEST_PLAN.md` pass.
 - **prototype/** chỉ để tham chiếu visual — không sync logic với `production/`.
 - Tất cả thay đổi production phải đi qua `production/` và bumps `TEST_PLAN.md`.
+
+
+## Production deployment authority (single source)
+
+### Canonical runtime URL
+
+- **Canonical runtime URL:** `https://www.jysenglish.com/quan-ly-nhan-su`
+- Legacy entry `https://www.jysenglish.com/?app=jys-hr` is allowed only as an input URL and must redirect deterministically to `/quan-ly-nhan-su` (301 or router redirect).
+
+### Canonical CI workflow file
+
+- **Canonical production workflow:** `.github/workflows/deploy-wix.yml`
+- `.github/workflows/deploy-hr.yml` is **preview/archive only** and is intentionally manual (`workflow_dispatch`) to prevent accidental parallel production deploys.
+
+### Fallback/rollback process
+
+1. If a bad production deploy happens, re-run `.github/workflows/deploy-wix.yml` from the last known-good commit SHA.
+2. Confirm the Wix custom embed points to the expected bundle URL and that bundle no longer contains `__API_URL__` placeholder.
+3. Verify runtime behavior on both:
+   - `https://www.jysenglish.com/quan-ly-nhan-su`
+   - `https://www.jysenglish.com/?app=jys-hr` (must redirect to canonical URL).
+4. If redirect breaks, restore Wix Redirect Manager rule (or Velo router fallback) from `?app=jys-hr` to `/quan-ly-nhan-su`, then republish Wix site.
