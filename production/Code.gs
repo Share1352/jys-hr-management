@@ -508,9 +508,11 @@ function saveLuongThang_(body) {
   try {
     var rec = body.record || {};
     if (!rec.empId) return jsonErr_("Thiếu empId");
-    if (!rec.month || !/^\d{4}-\d{2}$/.test(String(rec.month))) {
-      return jsonErr_("Tháng không hợp lệ. Định dạng đúng: YYYY-MM");
+    var month = String(rec.month || "").trim();
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      return jsonErr_("Tháng không hợp lệ. Định dạng đúng: YYYY-MM và tháng từ 01 đến 12");
     }
+    rec.month = month;
     if (rec.luongThucTe == null || rec.luongThucTe === "") {
       return jsonErr_("Thiếu lương thực tế");
     }
@@ -529,7 +531,7 @@ function saveLuongThang_(body) {
       var all = readSheet_(SHEET_LUONGTHANG);
       for (var i = 0; i < all.length; i++) {
         if (String(all[i].empId) === String(rec.empId) &&
-            String(all[i].month) === String(rec.month)) {
+            String(all[i].month) === rec.month) {
           existingRec = all[i];
           rec.id = existingRec.id;
           existingRow = rowIndexById_(SHEET_LUONGTHANG, existingRec.id);

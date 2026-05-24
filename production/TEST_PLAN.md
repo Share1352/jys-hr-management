@@ -131,6 +131,7 @@ Người chạy: Codex (automation)   Ngày: 2026-05-20
   grep -RIn --exclude-dir=.git -E 'MANAGER_CODE\s*=\s*"[^_<]' production || true
   ```
   Cả ba lệnh **không in ra kết quả nào**. `production/jys_quan_ly_nhan_su.html` vẫn chứa nguyên `var API_URL = "__API_URL__";`.
+- [ ] **L.11 — Backend từ chối tháng không hợp lệ (`00`, `13`).** Gửi request `saveLuongThang` với `record.month=2026-00` và `record.month=2026-13` (đã có `empId`, `luongThucTe`, `auth` hợp lệ). Backend trả `ok:false` với thông báo lỗi tháng không hợp lệ; không tạo/cập nhật row nào trong sheet `LuongThang`.
 
 **Phụ — validation phụ trên UI:**
 
