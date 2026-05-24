@@ -1,0 +1,139 @@
+name: Deploy HR App
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+  statuses: write
+  pull-requests: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_HTML: production/jys_quan_ly_nhan_su.html
+      ARTIFACT_DIR: deploy
+      ARTIFACT_HTML: deploy/jys_quan_ly_nhan_su.html
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate no secret leakage
+        run: |
+          set -euo pipefail
+          rg -n "script\.google\.com/macros/s/[A-Za-z0-9_-]{20,}" . && { echo "Found committed Apps Script URL" >&2; exit 1; } || true
+          rg -n -P "var\s+API_URL\s*=\s*\"(?!__API_URL__)[^\"]+\";" production/jys_quan_ly_nhan_su.html && { echo "Found hardcoded API URL" >&2; exit 1; } || true
+          rg -n -S "MANAGER_CODE\s*=\s*['\"][^'\"]+['\"]|old-shared-manager-code|Mã demo|Demo:" production/Code.gs production/jys_quan_ly_nhan_su.html && { echo "Found hardcoded manager code/demo credential" >&2; exit 1; } || true
+
+      - name: Build deploy artifact
+        env:
+          HR_API_URL: ${{ secrets.HR_API_URL }}
+        run: |
+          set -euo pipefail
+          test -n "${HR_API_URL:-}" || { echo "Missing secret HR_API_URL" >&2; exit 1; }
+          mkdir -p "$ARTIFACT_DIR"
+          cp "$SOURCE_HTML" "$ARTIFACT_HTML"
+          sed -i "s|__API_URL__|${HR_API_URL}|g" "$ARTIFACT_HTML"
+          ! rg -n "__API_URL__" "$ARTIFACT_HTML"
+
+      - name: Upload deploy artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hr-deploy-artifact
+          path: deploy/
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy_cloudflare
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && secrets.CLOUDFLARE_PROJECT_NAME != '' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy deploy --project-name=${{ secrets.CLOUDFLARE_PROJECT_NAME }}
+
+      - name: Deploy to Netlify
+        id: deploy_netlify
+        if: ${{ steps.deploy_cloudflare.outcome != 'success' && secrets.NETLIFY_AUTH_TOKEN != '' && secrets.NETLIFY_SITE_ID != '' }}
+        uses: nwtgck/actions-netlify@v3.0
+        with:
+          publish-dir: ./deploy
+          production-deploy: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Deploy from GitHub Actions #${{ github.run_number }}"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+      - name: Resolve deployed URL
+        id: deployed_url
+        run: |
+          set -euo pipefail
+          URL=""
+          if [ "${{ steps.deploy_cloudflare.outcome }}" = "success" ]; then
+            URL="${{ steps.deploy_cloudflare.outputs.deployment-url }}"
+          elif [ "${{ steps.deploy_netlify.outcome }}" = "success" ]; then
+            URL="${{ steps.deploy_netlify.outputs.deploy-url }}"
+          fi
+          test -n "$URL" || { echo "No deploy target succeeded or configured" >&2; exit 1; }
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test deployed URL
+        run: |
+          set -euo pipefail
+          URL='${{ steps.deployed_url.outputs.url }}'
+          for i in 1 2 3; do curl -fsSL "$URL" -o page.html && break || sleep 5; done
+          rg -n "Quản lý nhân sự|Đăng nhập|Mã nhân viên|Mã quản lý" page.html
+
+      - name: Create deployment status (success)
+        if: ${{ success() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'success',
+              context: 'deploy/hr',
+              description: 'HR deployment succeeded',
+              target_url: '${{ steps.deployed_url.outputs.url }}'
+            });
+
+      - name: Create deployment status (failure)
+        if: ${{ failure() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'failure',
+              context: 'deploy/hr',
+              description: 'HR deployment failed',
+              target_url: runUrl
+            });
+
+      - name: Notify failure
+        if: ${{ failure() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `🚨 Deployment failed for HR app.\n\nWorkflow: ${context.workflow}\nRun: ${runUrl}`;
+            if (context.payload.pull_request?.number) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body
+              });
+            } else {
+              core.warning(`No PR context; failure notification available in run logs: ${runUrl}`);
+            }
