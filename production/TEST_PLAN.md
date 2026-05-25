@@ -105,6 +105,16 @@ Người chạy: Codex (automation)   Ngày: 2026-05-20
 - [x] ❌ Khi nội dung dài (ví dụ bảng lỗi dài), iframe có **chiều cao đủ** để xem hết (hoặc scroll bên trong iframe nếu chiều cao cố định 100vh).
 - [x] ❌ **Đường dẫn `/?app=jys-hr` và `/#jys-hr` không được dùng** trong tài liệu hoặc menu nội bộ.
 
+
+### J evidence notes (Wix deploy pipeline)
+
+- [ ] Xác nhận secrets repository: `WIX_API_KEY` và `API_URL` đã được cấu hình (không rỗng).
+- [ ] Xác nhận repository variables: `WIX_SITE_ID` và `WIX_EMBED_ID` đúng với site production (hoặc giữ mặc định hiện tại có chủ đích).
+- [ ] Trigger thủ công workflow `deploy-wix.yml` bằng `workflow_dispatch`.
+- [ ] Xác nhận step **Smoke-test bundle** trong run đã pass.
+- [ ] Ghi URL run thành công: `____________________________`.
+- [ ] Đính kèm evidence (log run + ảnh chụp step smoke-test): `____________________________`.
+
 ## K. Mobile / responsive
 
 - [x] ❌ Mở app trên điện thoại (Chrome / Safari). Tabs cuộn ngang được. Form không bị tràn.
