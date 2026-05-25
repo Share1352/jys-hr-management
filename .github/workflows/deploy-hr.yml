@@ -91,7 +91,7 @@ jobs:
           set -euo pipefail
           URL='${{ steps.deployed_url.outputs.url }}'
           for i in 1 2 3; do curl -fsSL "$URL" -o page.html && break || sleep 5; done
-          rg -n "Quản lý nhân sự|Đăng nhập|Mã nhân viên|Mã quản lý" page.html
+          grep -nE "Quản lý nhân sự|Đăng nhập|Mã nhân viên|Mã quản lý" page.html
 
       - name: Create deployment status (success)
         if: ${{ success() }}
