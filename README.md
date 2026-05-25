@@ -133,3 +133,28 @@ Khuyến nghị vận hành:
    - `https://www.jysenglish.com/quan-ly-nhan-su`
    - `https://www.jysenglish.com/?app=jys-hr` (must redirect to canonical URL).
 4. If redirect breaks, restore Wix Redirect Manager rule (or Velo router fallback) from `?app=jys-hr` to `/quan-ly-nhan-su`, then republish Wix site.
+
+### Deployment freshness policy (SLO + verification)
+
+- **Example SLO:** merged PR should be visible on `https://www.jysenglish.com/?app=jys-hr` within **5 minutes** (with deterministic redirect to canonical `/quan-ly-nhan-su`).
+- This SLO tracks freshness from merge/deploy to end-user-visible render.
+
+**Exact verification steps**
+
+1. **Check custom embed `BUNDLE_URL`**
+   - In Wix page settings for `/quan-ly-nhan-su`, open the custom embed and copy the exact configured `BUNDLE_URL`.
+   - Confirm the URL points to the intended new artifact.
+2. **Fetch bundle content hash/version marker**
+   - Fetch the bundle from `BUNDLE_URL` and compute hash:
+     - `curl -fsSL "$BUNDLE_URL" | shasum -a 256`
+   - Compare against expected version marker (commit SHA / release marker) for the merged PR.
+3. **Verify page render after cache window**
+   - Wait for the cache window to pass (up to the 5-minute SLO budget).
+   - Hard-refresh and verify runtime on both:
+     - `https://www.jysenglish.com/quan-ly-nhan-su`
+     - `https://www.jysenglish.com/?app=jys-hr` (must redirect to canonical route).
+   - Confirm the page renders and reflects the merged change.
+
+**Rollback note**
+
+- If smoke test fails, re-point the embed to the previous known-good `BUNDLE_URL`, republish Wix, and re-run the verification steps above.
