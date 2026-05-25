@@ -53,6 +53,33 @@ https://www.jysenglish.com/quan-ly-nhan-su
    - `https://www.jysenglish.com/?app=jys-hr` → redirects to canonical route.
 4. If redirect fails, restore Redirect Manager (301) or Velo router redirect and republish.
 
+### Deployment freshness policy (SLO + verification)
+
+- **Freshness SLO (example):** một PR đã merge phải được nhìn thấy trên link legacy `https://www.jysenglish.com/?app=jys-hr` trong vòng **5 phút** (sau khi redirect về route canonical).
+- Mục tiêu này áp dụng cho thay đổi ở bundle frontend được Wix custom embed trỏ tới.
+
+#### Các bước xác minh bắt buộc
+
+1. **Xác nhận `BUNDLE_URL` hiện tại trong Wix custom embed**
+   - Mở Wix Editor (hoặc dashboard site đã publish), vào trang `/quan-ly-nhan-su`.
+   - Mở phần tử Embed và copy chính xác URL đang cấu hình (`BUNDLE_URL`).
+   - Kiểm tra URL này đúng với bundle của commit mới nhất.
+2. **Lấy dấu phiên bản/hash từ nội dung bundle**
+   - Mở trực tiếp `BUNDLE_URL` trên trình duyệt, hoặc dùng terminal fetch:
+     - `curl -fsSL "$BUNDLE_URL" | shasum -a 256`
+   - Đối chiếu với marker triển khai mong đợi (ví dụ: commit SHA/comment version marker trong HTML hoặc hash chuẩn do pipeline ghi nhận).
+3. **Đợi hết cửa sổ cache rồi kiểm tra render**
+   - Chờ qua cửa sổ cache của Wix/CDN/trình duyệt (khuyến nghị đợi đủ đến mốc 5 phút của SLO).
+   - Hard refresh và mở:
+     - `https://www.jysenglish.com/quan-ly-nhan-su`
+     - `https://www.jysenglish.com/?app=jys-hr` (phải redirect deterministic về canonical route).
+   - Xác nhận UI render đúng và có thay đổi của bản vừa merge.
+
+#### Ghi chú rollback nhanh
+
+- Nếu smoke test thất bại sau deploy, **re-point Wix custom embed về `BUNDLE_URL` bản known-good trước đó** để khôi phục ngay.
+- Sau khi re-point, republish Wix và lặp lại các bước xác minh hash/render ở trên.
+
 ---
 
 Tài liệu này hướng dẫn đặt app HR JYS lên Wix tại địa chỉ cuối cùng:
