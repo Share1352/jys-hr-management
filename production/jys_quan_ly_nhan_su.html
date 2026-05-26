@@ -159,6 +159,13 @@
   .filter-bar .field{margin-bottom:0;min-width:150px}
   .muted-text{color:var(--ink-soft);font-size:13px}
   .build-note{margin-top:10px;text-align:center;font-size:12px;color:var(--ink-faint)}
+  .build-warn{position:fixed;top:0;left:0;right:0;z-index:9999;background:#b91c1c;color:#fff;
+    text-align:center;font-size:13px;font-weight:600;padding:8px 12px;line-height:1.4}
+  .diag-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .diag-tbl td,.diag-tbl th{border-bottom:1px solid var(--line,#e5e7eb);padding:6px 8px;text-align:left;vertical-align:top}
+  .diag-tbl td:first-child{color:var(--ink-faint);white-space:nowrap}
+  .diag-logs{font-size:12px}
+  .diag-logs th{color:var(--ink-faint);font-weight:600}
   .catalog-sec{margin-bottom:24px}
   .catalog-sec h3{font-size:14.5px;margin-bottom:8px;color:var(--sky-dark)}
   .consq{color:var(--sky-dark);font-weight:700}
@@ -261,6 +268,8 @@
   <div class="lbox"><div class="spin"></div><div class="lmsg" id="loadMsg">Đang xử lý…</div></div>
 </div>
 
+<div class="build-warn" id="buildWarn" role="alert" style="display:none"></div>
+
 <!-- ================= LOGIN ================= -->
 <div class="login-shell" id="loginShell">
   <div class="login-card">
@@ -296,6 +305,7 @@
       Nhân viên xem được hồ sơ và lỗi vi phạm của riêng mình.
       Quản lý nhập và sửa toàn bộ dữ liệu.
     </div>
+    <div class="build-note" id="buildNoteLogin" aria-live="polite"></div>
   </div>
 </div>
 
@@ -336,6 +346,31 @@
    ===================================================================== */
 var API_URL = "__API_URL__";
 var APP_BUILD = "__APP_BUILD__";
+
+/* ===== Build + chẩn đoán (an toàn — KHÔNG lộ API_URL / auth / PIN) ===== */
+var BUILD_INFO = {
+  frontend: (APP_BUILD && APP_BUILD.indexOf("__APP") < 0) ? APP_BUILD : "dev",
+  backend: ""
+};
+function apiHost_(){
+  try { return new URL(API_URL).host; } catch (e) { return ""; }
+}
+function genRequestId_(){
+  return "fe_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+/* Đối tượng chẩn đoán công khai — chỉ host của API, không bao giờ là URL đầy đủ. */
+window.__JYS_DIAG__ = {
+  service: "jys-hr",
+  frontendBuild: BUILD_INFO.frontend,
+  backendBuild: "",
+  apiConfigured: apiReady(),
+  apiHost: apiHost_(),
+  mode: "production",
+  canonicalUrl: "https://www.jysenglish.com/quan-ly-nhan-su",
+  lastRequestId: "",
+  lastHealth: null,
+  lastError: null
+};
 
 /* ===== Danh sách chi nhánh — dùng chung mọi nơi ===== */
 var BRANCHES = ["Đô Lương", "Vinh", "Quảng Sơn"];
@@ -607,17 +642,27 @@ function call(opts){
   if(!apiReady()){
     return Promise.reject(new Error(NET_ERR));
   }
+  var requestId = genRequestId_();
+  var action = (opts.body && opts.body.action) || (opts.params && opts.params.action) || "";
+  var isClientLog = (action === "clientLog");
+  var t0 = Date.now();
   if(opts.loading) showLoading(opts.loading);
   if(opts.busyBtn) opts.busyBtn.disabled = true;
   var promise;
   if(opts.body){
+    var bodyObj = {};
+    for(var k in opts.body){ if(opts.body.hasOwnProperty(k)) bodyObj[k] = opts.body[k]; }
+    bodyObj.requestId   = requestId;
+    bodyObj.clientBuild = BUILD_INFO.frontend;
+    if(!isClientLog) window.__JYS_DIAG__.lastRequestId = requestId;
     promise = _fetchWithTimeout(API_URL, {
       method: "POST",
       headers: {"Content-Type":"text/plain;charset=utf-8"},
-      body: JSON.stringify(opts.body)
+      body: JSON.stringify(bodyObj)
     });
   } else {
     var params = opts.params || {};
+    if(!params.requestId) params.requestId = requestId;
     var url = API_URL + "?" + Object.keys(params).map(function(k){
       return encodeURIComponent(k)+"="+encodeURIComponent(params[k]);
     }).join("&");
@@ -626,12 +671,103 @@ function call(opts){
   return promise.then(_parseJson).then(function(res){
     if(opts.loading) hideLoading();
     if(opts.busyBtn) opts.busyBtn.disabled = false;
+    var dur = Date.now() - t0;
+    if(res && res.backendBuild){
+      BUILD_INFO.backend = res.backendBuild;
+      window.__JYS_DIAG__.backendBuild = res.backendBuild;
+    }
+    if(!isClientLog && res && res.requestId){ window.__JYS_DIAG__.lastRequestId = res.requestId; }
+    if(!isClientLog && res && res.ok === false){
+      reportClientEvent("warn", "apiError",
+        {action:action, message:(res.error||""), requestId:(res.requestId||requestId), durationMs:dur});
+    }
     return res;
   }, function(err){
     if(opts.loading) hideLoading();
     if(opts.busyBtn) opts.busyBtn.disabled = false;
+    var dur = Date.now() - t0;
+    if(!isClientLog){
+      window.__JYS_DIAG__.lastError =
+        {action:action, message:String(err&&err.message||err), at:new Date().toISOString()};
+      reportClientEvent("error", "apiFailure",
+        {action:action, message:String(err&&err.message||err), requestId:requestId, durationMs:dur});
+    }
     throw new Error(NET_ERR);
   });
+}
+
+/* Telemetry sink — fire-and-forget, never recurses into clientLog, never
+   surfaces UI. Strips auth/PIN/manager-code/full-API-URL before sending. */
+function sanitizeClient_(obj){
+  try {
+    var bad = /(auth|managercode|macanhan|pin|pass|password|token|cookie|bearer|api_?url)/i;
+    var out = {};
+    for(var k in obj){
+      if(!obj.hasOwnProperty(k)) continue;
+      if(bad.test(k)){ out[k] = "[redacted]"; continue; }
+      var v = obj[k];
+      if(typeof v === "string"){
+        out[k] = v.replace(/https?:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_\-]+(\/exec|\/dev)?/g, "[script-url]").slice(0, 1000);
+      } else { out[k] = v; }
+    }
+    return out;
+  } catch(e){ return {}; }
+}
+function reportClientEvent(level, event, details){
+  try {
+    if(!apiReady()) return;
+    details = details || {};
+    var payload = {
+      action: "clientLog",
+      requestId: details.requestId || genRequestId_(),
+      level: level || "info",
+      event: event || "event",
+      message: details.message ? String(details.message).slice(0, 500) : "",
+      details: sanitizeClient_(details),
+      clientBuild: BUILD_INFO.frontend,
+      urlPath: location.pathname + location.search,
+      userAgent: navigator.userAgent
+    };
+    _fetchWithTimeout(API_URL, {
+      method: "POST",
+      headers: {"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify(payload)
+    }, 8000).then(function(){}, function(){});  // swallow — telemetry must never break the app
+  } catch(e){}
+}
+function currentTab_(){
+  var a = document.querySelector(".tab.active");
+  return a ? (a.dataset.tab || "") : "";
+}
+/* Startup health probe — records build/health, never blocks login. */
+function probeHealth_(){
+  if(!apiReady()) return;
+  var rid = genRequestId_();
+  var url = API_URL + "?action=health&requestId=" + encodeURIComponent(rid);
+  _fetchWithTimeout(url, {method:"GET"}, 10000).then(_parseJson).then(function(res){
+    if(res && res.ok){
+      window.__JYS_DIAG__.lastHealth = res;
+      if(res.backendBuild){
+        BUILD_INFO.backend = res.backendBuild;
+        window.__JYS_DIAG__.backendBuild = res.backendBuild;
+      }
+      renderBuildNote_();
+      checkBuildParity_();
+    }
+  }, function(){ /* health failure must not block login; call() already logs it elsewhere */ });
+}
+/* Show a visible warning only when both builds are known and differ. */
+function checkBuildParity_(){
+  var el = $("#buildWarn");
+  if(!el) return;
+  var fe = BUILD_INFO.frontend, be = BUILD_INFO.backend;
+  var known = fe && be && fe !== "dev" && be !== "dev" && fe.indexOf("__APP") < 0;
+  if(known && fe !== be){
+    el.style.display = "block";
+    el.textContent = "Cảnh báo phiên bản: giao diện và máy chủ chưa cùng bản. Hãy tải lại trang hoặc báo quản lý.";
+  } else {
+    el.style.display = "none";
+  }
 }
 
 /* Backward-compat shims: any remaining apiGet/apiPost go through call() */
@@ -757,11 +893,11 @@ $("#btnLogout").onclick=function(){
    VÀO APP — tải dữ liệu theo vai trò
    ===================================================================== */
 function renderBuildNote_(){
-  var el=$("#buildNote");
-  if(!el) return;
   var fe=BUILD_INFO.frontend||"chưa đặt";
   var be=BUILD_INFO.backend||"chưa nhận";
-  el.textContent="Phiên bản hệ thống: giao diện " + fe + " · máy chủ " + be;
+  var txt="Phiên bản hệ thống: giao diện " + fe + " · máy chủ " + be;
+  var el=$("#buildNote");      if(el)  el.textContent=txt;
+  var el2=$("#buildNoteLogin"); if(el2) el2.textContent=txt;
 }
 
 function enterApp(){
@@ -814,7 +950,8 @@ var TABS_MANAGER=[
   {id:"luong",  label:"Lương tháng"},
   {id:"cat",    label:"Danh mục lỗi"},
   {id:"quiz",   label:"Kiểm tra"},
-  {id:"admin",  label:"Quản trị mã"}
+  {id:"admin",  label:"Quản trị mã"},
+  {id:"diag",   label:"Chẩn đoán"}
 ];
 var TABS_STAFF=[
   {id:"me",     label:"Hồ sơ của tôi"},
@@ -875,6 +1012,55 @@ function renderTab(id){
   if(id==="me")     return renderMe(p);
   if(id==="myviol") return renderMyViol(p);
   if(id==="admin")  return renderAdminCodes(p);
+  if(id==="diag")   return renderDiag(p);
+}
+
+/* ===== Tab Chẩn đoán (chỉ quản lý) — không lộ secret ===== */
+function renderDiag(p){
+  var d = window.__JYS_DIAG__ || {};
+  var h = d.lastHealth;
+  var healthTxt = h ? ("ok=" + (h.ok===true) + " · build=" + esc(h.backendBuild||h.version||"") )
+                    : "chưa có (probe sẽ chạy lúc khởi động)";
+  var sheetsTxt = (h && h.sheets) ? Object.keys(h.sheets).map(function(k){
+        return k + ":" + (h.sheets[k] ? "✓" : "✗");
+      }).join(" · ") : "—";
+  p.innerHTML = ''+
+    '<div class="card card-pad" style="max-width:640px">'+
+      '<div class="card-h">Chẩn đoán hệ thống</div>'+
+      '<table class="diag-tbl">'+
+        '<tr><td>Dịch vụ</td><td>'+esc(d.service||"jys-hr")+'</td></tr>'+
+        '<tr><td>Build giao diện</td><td>'+esc(BUILD_INFO.frontend||"—")+'</td></tr>'+
+        '<tr><td>Build máy chủ</td><td>'+esc(BUILD_INFO.backend||"chưa nhận")+'</td></tr>'+
+        '<tr><td>Khớp build</td><td>'+(BUILD_INFO.frontend && BUILD_INFO.backend ? (BUILD_INFO.frontend===BUILD_INFO.backend ? "✓ khớp" : "✗ KHÔNG khớp") : "—")+'</td></tr>'+
+        '<tr><td>API đã cấu hình</td><td>'+(apiReady()?"✓ có":"✗ chưa")+'</td></tr>'+
+        '<tr><td>API host</td><td>'+esc(d.apiHost||"—")+'</td></tr>'+
+        '<tr><td>Request gần nhất</td><td>'+esc(d.lastRequestId||"—")+'</td></tr>'+
+        '<tr><td>Health</td><td>'+healthTxt+'</td></tr>'+
+        '<tr><td>Sheets</td><td>'+sheetsTxt+'</td></tr>'+
+      '</table>'+
+      '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">'+
+        '<button class="btn sm" id="diagProbe">Kiểm tra health</button>'+
+        '<button class="btn sm" id="diagLogs">Tải log gần đây</button>'+
+      '</div>'+
+      '<div id="diagLogBox" style="margin-top:12px"></div>'+
+    '</div>';
+  $("#diagProbe").onclick=function(){ probeHealth_(); setTimeout(function(){ renderDiag(p); }, 1200); };
+  $("#diagLogs").onclick=function(){
+    var box=$("#diagLogBox");
+    box.innerHTML='<div class="muted">Đang tải log…</div>';
+    call({body:{action:"getAuditLog",auth:SESSION.auth,limit:100}, loading:"Đang tải log…"}).then(function(res){
+      if(!res||!res.ok||!res.logs){ box.innerHTML='<div class="muted">'+esc((res&&res.error)||"Không tải được log")+'</div>'; return; }
+      if(!res.logs.length){ box.innerHTML='<div class="muted">Chưa có log.</div>'; return; }
+      box.innerHTML='<table class="diag-tbl diag-logs"><tr><th>Thời gian</th><th>Mức</th><th>Trạng thái</th><th>Nguồn</th><th>Hành động</th><th>requestId</th><th>ms</th></tr>'+
+        res.logs.map(function(r){
+          return '<tr><td>'+esc(String(r.ts||"").slice(0,19).replace("T"," "))+'</td>'+
+                 '<td>'+esc(r.level||"")+'</td><td>'+esc(r.status||"")+'</td>'+
+                 '<td>'+esc(r.source||"")+'</td><td>'+esc(r.action||"")+'</td>'+
+                 '<td style="font-size:11px">'+esc(String(r.requestId||"").slice(0,12))+'</td>'+
+                 '<td>'+esc(r.durationMs!=null?r.durationMs:"")+'</td></tr>';
+        }).join("")+'</table>';
+    }).catch(function(){ box.innerHTML='<div class="muted">'+esc(NET_ERR)+'</div>'; });
+  };
 }
 
 
@@ -2015,6 +2201,7 @@ function paintQuizResult(score,passed){
    KHỞI ĐỘNG
    ===================================================================== */
 (function init(){
+  renderBuildNote_();
   if(!apiReady()){
     $("#loginMsg").className="login-msg err";
     $("#loginMsg").textContent="App chưa kết nối máy chủ. Mở file bằng trình soạn thảo và dán link Apps Script vào dòng API_URL.";
@@ -2022,8 +2209,32 @@ function paintQuizResult(score,passed){
     $("#btnLogin").disabled=true;
     return;
   }
+  probeHealth_();          // ghi build/health, không chặn đăng nhập
   loadEmpListForLogin();
 })();
+
+/* ===== Bắt lỗi toàn cục → gửi telemetry đã làm sạch ===== */
+window.addEventListener("error", function(ev){
+  try {
+    reportClientEvent("error", "windowError", {
+      message: (ev && ev.message) || "error",
+      source: (ev && ev.filename) || "",
+      line: (ev && ev.lineno) || 0,
+      stack: (ev && ev.error && ev.error.stack) ? String(ev.error.stack).slice(0, 500) : "",
+      tab: currentTab_()
+    });
+  } catch(e){}
+});
+window.addEventListener("unhandledrejection", function(ev){
+  try {
+    var r = ev && ev.reason;
+    reportClientEvent("error", "unhandledRejection", {
+      message: (r && r.message) ? r.message : String(r),
+      stack: (r && r.stack) ? String(r.stack).slice(0, 500) : "",
+      tab: currentTab_()
+    });
+  } catch(e){}
+});
 
 /* =====================================================================
    GỬI CHIỀU CAO CHO WIX (nếu nhúng qua iframe)

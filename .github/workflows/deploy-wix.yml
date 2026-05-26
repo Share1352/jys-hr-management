@@ -1,25 +1,39 @@
-# ENVIRONMENT: PRODUCTION (canonical HR deploy for Wix runtime /quan-ly-nhan-su)
-name: Deploy HR bundle to Wix
+# ENVIRONMENT: PRODUCTION — canonical end-to-end deploy for https://www.jysenglish.com/quan-ly-nhan-su
+# Order: secret scan → build id → Apps Script backend → health==build → Wix bundle → production verification.
+# Path kept as deploy-wix.yml because docs reference it as the canonical production workflow.
+name: Deploy HR (backend + Wix) and verify
 
 on:
   push:
     branches: [main]
     paths:
       - "production/jys_quan_ly_nhan_su.html"
-      - "scripts/deploy-wix.mjs"
+      - "production/Code.gs"
+      - "scripts/**"
       - ".github/workflows/deploy-wix.yml"
   workflow_dispatch: {}
 
 concurrency:
-  group: deploy-wix
+  group: deploy-hr
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
     permissions:
       contents: read
+    env:
+      API_URL:      ${{ secrets.API_URL }}
+      WIX_API_KEY:  ${{ secrets.WIX_API_KEY }}
+      WIX_SITE_ID:  ${{ vars.WIX_SITE_ID  || 'a3bfa336-e918-48e6-831b-82ed7ff178f5' }}
+      WIX_EMBED_ID: ${{ vars.WIX_EMBED_ID || '516cefe5-e0bb-4b1c-9d06-5bb16dd6482f' }}
+      GAS_SCRIPT_ID:         ${{ secrets.GAS_SCRIPT_ID }}
+      GAS_DEPLOYMENT_ID:     ${{ secrets.GAS_DEPLOYMENT_ID }}
+      CLASP_CREDENTIALS_JSON: ${{ secrets.CLASP_CREDENTIALS_JSON }}
+      ALERT_WEBHOOK_URL:     ${{ secrets.ALERT_WEBHOOK_URL }}
+      FULL_E2E_REQUIRED:     ${{ vars.FULL_E2E_REQUIRED || 'false' }}
+      E2E_MANAGER_CODE:      ${{ secrets.E2E_MANAGER_CODE }}
     steps:
       - uses: actions/checkout@v4
 
@@ -27,42 +41,95 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Deploy bundle to Wix Media + repoint Custom Embed
-        env:
-          WIX_API_KEY:  ${{ secrets.WIX_API_KEY }}
-          API_URL:      ${{ secrets.API_URL }}
-          WIX_SITE_ID:  ${{ vars.WIX_SITE_ID  || 'a3bfa336-e918-48e6-831b-82ed7ff178f5' }}
-          WIX_EMBED_ID: ${{ vars.WIX_EMBED_ID || '516cefe5-e0bb-4b1c-9d06-5bb16dd6482f' }}
-        run: node scripts/deploy-wix.mjs
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
-      - name: Smoke-test bundle
-        # Verifies the file uploaded by the deploy step is reachable on Wix's
-        # CDN and contains an injected Apps Script URL (not the placeholder).
-        # The live page at /?app=jys-hr may still serve the previous render
-        # for 1-5 minutes due to Wix's SSR cache; that catches up on its own.
+      - name: Preflight — required secrets present
         run: |
           set -eu
-          BUNDLE_URL=$(node -e "
-            (async () => {
-              const r = await fetch('https://www.wixapis.com/embeds/v1/custom-embeds/${{ vars.WIX_EMBED_ID || '516cefe5-e0bb-4b1c-9d06-5bb16dd6482f' }}', {
-                headers: { Authorization: process.env.WIX_API_KEY, 'wix-site-id': '${{ vars.WIX_SITE_ID || 'a3bfa336-e918-48e6-831b-82ed7ff178f5' }}' },
-              });
-              const j = await r.json();
-              const html = j.customEmbed?.embedData?.html || '';
-              const m = html.match(/BUNDLE_URL = \"([^\"]+)\"/);
-              if (!m) { process.exit(2); }
-              process.stdout.write(m[1]);
-            })().catch(e => { console.error(e); process.exit(3); });
-          ")
-          echo "Embed BUNDLE_URL: $BUNDLE_URL"
-          curl -fsSL "$BUNDLE_URL" -o /tmp/bundle.txt
-          ls -l /tmp/bundle.txt
-          if grep -q '__API_URL__' /tmp/bundle.txt; then
-            echo "FAIL: placeholder __API_URL__ still in deployed bundle" >&2; exit 1
+          missing=""
+          [ -n "${API_URL:-}" ]                || missing="$missing API_URL"
+          [ -n "${WIX_API_KEY:-}" ]            || missing="$missing WIX_API_KEY"
+          [ -n "${GAS_SCRIPT_ID:-}" ]          || missing="$missing GAS_SCRIPT_ID"
+          [ -n "${CLASP_CREDENTIALS_JSON:-}" ] || missing="$missing CLASP_CREDENTIALS_JSON"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required secrets:$missing"
+            echo "Set them in repo Settings → Secrets. Refusing to deploy a partial/mismatched stack."
+            exit 1
           fi
-          if ! grep -qE 'var API_URL = "https://script\.google\.com/macros/s/[^"]+/exec";' /tmp/bundle.txt; then
-            echo "FAIL: deployed bundle has no Apps Script /exec URL" >&2; exit 1
+          echo "All required secrets present."
+
+      - name: Secret scan
+        run: npm run scan:secrets
+
+      - name: Generate BUILD_ID
+        run: |
+          set -eu
+          BUILD_ID="$(date -u +%Y%m%d-%H%M%SZ)-$(git rev-parse --short HEAD)"
+          echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
+          echo "Build ID: $BUILD_ID"
+
+      - name: Deploy Apps Script backend (first)
+        run: npm run deploy:gas
+
+      - name: Confirm backend health == BUILD_ID
+        run: |
+          set -eu
+          mkdir -p artifacts
+          ok=0
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS "${API_URL}?action=health&requestId=ci-${GITHUB_RUN_ID}-$i" -o artifacts/health.json; then ok=1; break; fi
+            sleep 5
+          done
+          [ "$ok" = "1" ] || { echo "::error::Backend health endpoint unreachable"; exit 1; }
+          HV=$(node -e "const h=require('./artifacts/health.json');process.stdout.write(String(h.backendBuild||h.version||''))")
+          echo "Backend build: $HV  | Expected: $BUILD_ID"
+          if [ "$HV" != "$BUILD_ID" ]; then
+            echo "::error::Backend build ($HV) != BUILD_ID ($BUILD_ID). If you use a fixed /exec URL, set GAS_DEPLOYMENT_ID to that deployment so clasp updates it in place."
+            exit 1
           fi
-          echo "Bundle OK. Live page propagates as Wix CDN cache expires."
+
+      - name: Deploy Wix bundle (after backend)
+        run: npm run deploy:wix
+
+      - name: Install Playwright Chromium
+        run: npx --yes playwright install --with-deps chromium
+
+      - name: Verify production
         env:
-          WIX_API_KEY: ${{ secrets.WIX_API_KEY }}
+          EXPECTED_BUILD: ${{ env.BUILD_ID }}
+        run: npm run verify:production
+
+      - name: Upload artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-verification-${{ env.BUILD_ID }}
+          path: |
+            artifacts/deploy-manifest.json
+            artifacts/health.json
+            artifacts/verification-summary.md
+            artifacts/*.png
+            artifacts/console-log.json
+            artifacts/network-failures.json
+          if-no-files-found: warn
+
+      - name: Rollback instructions on failure
+        if: ${{ failure() }}
+        run: |
+          echo "::group::Rollback"
+          echo "Deploy/verify FAILED for build ${BUILD_ID:-unknown}."
+          echo "1. Re-run .github/workflows/deploy-wix.yml from the last known-good commit (Run workflow → pick commit)."
+          echo "2. Or re-point the Wix Custom Embed BUNDLE_URL to the previous artifacts/deploy-manifest.json bundleUrl."
+          echo "3. Confirm ${API_URL:+API_URL}?action=health returns the matching build and canonical page renders."
+          echo "::endgroup::"
+
+      - name: Alert webhook on failure
+        if: ${{ failure() && env.ALERT_WEBHOOK_URL != '' }}
+        run: |
+          set +e
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          curl -fsS -X POST -H "Content-Type: application/json" \
+            -d "{\"service\":\"jys-hr\",\"buildId\":\"${BUILD_ID:-}\",\"commitSha\":\"${GITHUB_SHA}\",\"workflowRunUrl\":\"${RUN_URL}\",\"failedStep\":\"deploy/verify\"}" \
+            "$ALERT_WEBHOOK_URL" || true

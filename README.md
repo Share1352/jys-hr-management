@@ -96,13 +96,74 @@ Xem chi tiết trong `production/HUONG_DAN_CAI_DAT.md`. Tóm tắt:
 - **POST là chuẩn chính thức** cho toàn bộ action nghiệp vụ:
   - `listNames`, `loginManager`, `loginStaff`, `getAll`, `getMine`
   - và các action ghi dữ liệu (`save*`, `delete*`).
-- `doGet` chỉ dành cho `action=ping` để health-check.
-- Backend có **cửa sổ tương thích tạm thời** cho client cũ gọi GET các action ở trên đến hết **2026-07-31 (UTC)**, đồng thời ghi audit `legacyDoGet:<action>` để truy vết client cũ.
-- Sau mốc này, GET cho các action nghiệp vụ sẽ bị từ chối và bắt buộc cập nhật frontend bản mới.
+- `doGet` chỉ phục vụ health-check công khai:
+  - `action=health` (canonical) và `action=ping` (alias tương thích) trả cùng payload health.
+  - Các action nghiệp vụ gọi qua GET đều bị từ chối với thông báo bắt buộc dùng POST.
 
 Khuyến nghị vận hành:
 - Mọi bản frontend đang chạy trên Wix/static host phải được thay bằng bản mới nhất từ `production/jys_quan_ly_nhan_su.html`.
 - Không duy trì nhiều bản frontend cũ song song để tránh tiếp tục phát sinh traffic GET đã deprecated.
+
+---
+
+## Observability & deployment automation
+
+### Health endpoint contract
+
+`GET API_URL?action=health` (alias `?action=ping`) — công khai, không có dữ liệu nhạy cảm:
+
+```json
+{
+  "ok": true,
+  "service": "jys-hr",
+  "version": "<BUILD_ID>",
+  "backendBuild": "<BUILD_ID>",
+  "timestamp": "<ISO>",
+  "ts": 0,
+  "runtime": "google-apps-script",
+  "sheets": { "NhanVien": true, "ViPham": true, "KiemTra": true, "LuongThang": true, "AuditLog": true },
+  "requestId": "<uuid>"
+}
+```
+
+Không bao giờ chứa: manager code, PIN nhân viên, spreadsheet id, hay API URL.
+
+### Build ID policy
+
+- Định dạng: `YYYYMMDD-HHMMSSZ-<shortSha>` (ví dụ `20260526-091533Z-ae9274f`).
+- Sinh **một lần** mỗi lần deploy trong workflow, dùng chung cho cả backend và frontend.
+- Frontend: inject vào `var APP_BUILD = "__APP_BUILD__";`.
+- Backend: stamp vào `DEFAULT_APP_BUILD` của bản Code.gs đã copy (hoặc Script Property `APP_BUILD`).
+- Verify bắt buộc `frontend APP_BUILD == backend health build`; lệch → banner cảnh báo + verify fail.
+
+### Diagnostics object (frontend)
+
+`window.__JYS_DIAG__` (an toàn, debug từ trình duyệt): `service`, `frontendBuild`, `backendBuild`, `apiConfigured`, `apiHost` (chỉ host — **không** phải URL đầy đủ), `mode`, `canonicalUrl`, `lastRequestId`, `lastHealth`, `lastError`. Không chứa API_URL đầy đủ, auth, PIN, hay manager code.
+
+### AuditLog fields (append-only)
+
+`id, ts, requestId, level, status, source, actorRole, actorId, action, targetSheet, targetId, message, detailsJson, durationMs, build, userAgent`
+
+- Schema migration là **append-only** (`ensureSheet_` chỉ thêm cột thiếu, không xoá/đổi cột cũ).
+- `source`: `backend` | `frontend`. `level`: `info|warn|error`. `status`: `success|validation_error|auth_failure|exception|malformed_json|client`.
+- Mọi giá trị được làm sạch (`sanitizeForLog_`) trước khi ghi: redact auth/PIN/managerCode/password/API URL/token/Bearer/cookie; `detailsJson` giới hạn ~3000 ký tự.
+- `clientLog` ghi telemetry frontend; `getAuditLog` (chỉ quản lý) đọc lại log để troubleshoot từ xa.
+
+### Deploy workflow — `.github/workflows/deploy-wix.yml`
+
+Push `main` hoặc `workflow_dispatch`. Thứ tự: kiểm secrets → secret scan → sinh BUILD_ID → **deploy Apps Script (trước)** → xác nhận `health.backendBuild == BUILD_ID` → **deploy Wix bundle** → **verify production** → upload artifacts. Fail sớm nếu thiếu secret bắt buộc (`API_URL`, `WIX_API_KEY`, `GAS_SCRIPT_ID`, `CLASP_CREDENTIALS_JSON`).
+
+Secrets/variables: xem `docs/observability-runbook.md`.
+
+### Verification workflow — `.github/workflows/verify-production.yml`
+
+`workflow_dispatch` + cron mỗi 30 phút. Chạy `scripts/verify-production.mjs`: kiểm bundle (no placeholders, có `APP_BUILD`, có `__JYS_DIAG__`), health, parity build, render trang đăng nhập (Playwright), legacy URL về canonical. Upload `verification-summary.md` + screenshots + console/network logs.
+
+### Rollback workflow
+
+1. Re-run `deploy-wix.yml` từ commit known-good gần nhất (Run workflow → chọn commit).
+2. Hoặc re-point Wix Custom Embed `BUNDLE_URL` về `bundleUrl` trong `artifacts/deploy-manifest.json` của bản trước.
+3. Xác nhận `?action=health` trả đúng build và trang canonical render. Chi tiết: `docs/observability-runbook.md`.
 
 ---
 

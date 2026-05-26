@@ -1,0 +1,67 @@
+# Standalone production verification — runs on demand and every 30 minutes.
+# Self-diagnosing health/render/build-parity monitor for the live HR app.
+name: Verify production
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "*/30 * * * *"
+
+concurrency:
+  group: verify-production
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      PROD_URL:     https://www.jysenglish.com/quan-ly-nhan-su
+      LEGACY_URL:   https://www.jysenglish.com/?app=jys-hr
+      API_URL:      ${{ secrets.API_URL }}
+      WIX_API_KEY:  ${{ secrets.WIX_API_KEY }}
+      WIX_SITE_ID:  ${{ vars.WIX_SITE_ID  || 'a3bfa336-e918-48e6-831b-82ed7ff178f5' }}
+      WIX_EMBED_ID: ${{ vars.WIX_EMBED_ID || '516cefe5-e0bb-4b1c-9d06-5bb16dd6482f' }}
+      # No EXPECTED_BUILD on schedule → verify enforces frontend==backend parity instead.
+      FULL_E2E_REQUIRED: "false"
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Install Playwright Chromium
+        run: npx --yes playwright install --with-deps chromium
+
+      - name: Verify production
+        run: npm run verify:production
+
+      - name: Upload artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-${{ github.run_id }}
+          path: |
+            artifacts/verification-summary.md
+            artifacts/health.json
+            artifacts/*.png
+            artifacts/console-log.json
+            artifacts/network-failures.json
+          if-no-files-found: warn
+
+      - name: Alert webhook on failure
+        if: ${{ failure() && env.ALERT_WEBHOOK_URL != '' }}
+        run: |
+          set +e
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          curl -fsS -X POST -H "Content-Type: application/json" \
+            -d "{\"service\":\"jys-hr\",\"commitSha\":\"${GITHUB_SHA}\",\"workflowRunUrl\":\"${RUN_URL}\",\"failedStep\":\"verify-production\"}" \
+            "$ALERT_WEBHOOK_URL" || true
