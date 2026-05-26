@@ -19,7 +19,7 @@ Người chạy: Codex (automation)   Ngày: 2026-05-20
 | Deploy workflow run URL | `____________________` |
 | Verify workflow run URL | `____________________` |
 | Health endpoint result | `artifacts/health.json` |
-| Screenshot | `artifacts/canonical-login.png`, `artifacts/legacy.png` |
+| Screenshot | `artifacts/app-login.png` |
 | Console/network log | `artifacts/console-log.json`, `artifacts/network-failures.json` |
 | Deploy manifest | `artifacts/deploy-manifest.json` |
 | Pass/Fail | `____________________` |
@@ -30,7 +30,7 @@ Nguồn sự thật: `artifacts/verification-summary.md` (checklist pass/fail do
 
 ## A. Cấu hình ban đầu
 
-- [ ] Mở app từ địa chỉ chính thức (`/quan-ly-nhan-su` trên Wix, hoặc URL deploy). **App phải hiện màn hình đăng nhập trong < 3 giây.**
+- [ ] Mở app từ URL duy nhất `https://www.jysenglish.com/?app=jys-hr`. **App phải hiện màn hình đăng nhập trong < 3 giây.**
 - [ ] Không có lỗi gì hiện trên console của trình duyệt (Devtools → Console).
 - [ ] Logo JYS hiện rõ ở giữa khung đăng nhập.
 - [ ] Có thể chuyển giữa hai tab **Nhân viên / Quản lý** ở khung đăng nhập.
@@ -122,11 +122,11 @@ Nguồn sự thật: `artifacts/verification-summary.md` (checklist pass/fail do
 
 ## J. Render trong iframe Wix
 
-- [ ] Mở `https://www.jysenglish.com/quan-ly-nhan-su`. App nằm trong iframe, **không có khoảng đen trên đầu**.
+- [ ] Mở `https://www.jysenglish.com/?app=jys-hr`. App nằm trong iframe, **không có khoảng đen trên đầu**.
 - [ ] Không có hai thanh scroll.
 - [ ] Đăng nhập, dùng app bình thường — modal, overlay, toast đều hoạt động.
 - [ ] Khi nội dung dài (ví dụ bảng lỗi dài), iframe có **chiều cao đủ** để xem hết (hoặc scroll bên trong iframe nếu chiều cao cố định 100vh).
-- [ ] **Đường dẫn `/?app=jys-hr` và `/#jys-hr` không được dùng** trong tài liệu hoặc menu nội bộ.
+- [ ] **Chỉ một URL `https://www.jysenglish.com/?app=jys-hr`** được dùng; không tạo trang/đường dẫn thứ hai.
 
 
 ### J evidence notes (Wix deploy pipeline)
@@ -189,7 +189,7 @@ Nguồn sự thật: `artifacts/verification-summary.md` (checklist pass/fail do
 - [ ] **M.8 — Ghi log thất bại.** Validation error, auth failure, exception, malformed JSON đều tạo row `AuditLog` với `status` tương ứng.
 - [ ] **M.9 — Redaction.** Trong `AuditLog` không có manager code, PIN, password, API URL đầy đủ, Authorization/Bearer, cookie. (Kiểm tra cột `detailsJson`/`message`.)
 - [ ] **M.10 — getAuditLog chỉ cho quản lý.** `action=getAuditLog` không có `auth` đúng → từ chối; có auth đúng → trả log mới nhất trước, đã redact lại.
-- [ ] **M.11 — Render & legacy.** Trang canonical render UI đăng nhập, không có console error lúc khởi tạo; legacy `/?app=jys-hr` về đúng app canonical.
+- [ ] **M.11 — Render.** URL duy nhất `?app=jys-hr` render UI đăng nhập (trong iframe launcher), không có console error JS lúc khởi tạo.
 
 ## Đánh dấu kết quả tổng
 

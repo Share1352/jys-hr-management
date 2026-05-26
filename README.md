@@ -59,10 +59,9 @@ Repo này là **private** và **không bao giờ chứa secrets**.
 
 ## Canonical HR URL policy (Wix)
 
-- Canonical route duy nhất cho staff: `https://www.jysenglish.com/quan-ly-nhan-su`.
-- Nếu phải giữ public link cũ `https://www.jysenglish.com/?app=jys-hr`, Wix phải cấu hình **deterministic redirect** (301 hoặc router logic) để luôn chuyển về `/quan-ly-nhan-su`.
-- `https://www.jysenglish.com/#jys-hr` được xem là deprecated và không dùng cho vận hành.
-- **Cutoff date:** sau **2026-07-31 (UTC)**, tài liệu nội bộ và truyền thông vận hành chỉ được dùng canonical route `/quan-ly-nhan-su`.
+- **Một URL duy nhất, vĩnh viễn:** `https://www.jysenglish.com/?app=jys-hr`. Đây là cách truy cập app duy nhất cho staff.
+- Không tạo trang Wix thứ hai. Không dùng `/quan-ly-nhan-su` hay `#jys-hr` — chỉ một URL để tránh nhầm lẫn.
+- App được phục vụ bởi Wix Custom Embed "JYS HR app launcher" (site-wide). Deploy chỉ cập nhật `BUNDLE_URL` của embed — không cần thao tác Wix Editor cho mỗi lần phát hành.
 
 ## Triển khai (tóm tắt)
 
@@ -81,9 +80,8 @@ Xem chi tiết trong `production/HUONG_DAN_CAI_DAT.md`. Tóm tắt:
    - Upload file đã sửa lên static host (Cloudflare Pages, GitHub Pages, hoặc host bất kỳ).
 
 3. **Wix embed**
-   - Trong Wix Editor, dùng trang slug `/quan-ly-nhan-su` làm route chuẩn duy nhất cho staff.
-   - Nếu duy trì `?app=jys-hr`, bắt buộc redirect deterministic về `/quan-ly-nhan-su`.
-   - Add → Embed → HTML iframe → trỏ tới URL bản frontend.
+   - App phục vụ qua Custom Embed "JYS HR app launcher" tại URL duy nhất `https://www.jysenglish.com/?app=jys-hr`.
+   - Deploy tự động cập nhật `BUNDLE_URL` của embed; không cần tạo trang mới.
    - Xem `production/WIX_PAGE_SETUP.md`.
 
 4. **QA**
@@ -157,7 +155,7 @@ Secrets/variables: xem `docs/observability-runbook.md`.
 
 ### Verification workflow — `.github/workflows/verify-production.yml`
 
-`workflow_dispatch` + cron mỗi 30 phút. Chạy `scripts/verify-production.mjs`: kiểm bundle (no placeholders, có `APP_BUILD`, có `__JYS_DIAG__`), health, parity build, render trang đăng nhập (Playwright), legacy URL về canonical. Upload `verification-summary.md` + screenshots + console/network logs.
+`workflow_dispatch` + cron mỗi 30 phút. Chạy `scripts/verify-production.mjs`: kiểm bundle (no placeholders, có `APP_BUILD`, có `__JYS_DIAG__`), health, parity build, render trang đăng nhập (Playwright) tại URL duy nhất `?app=jys-hr`. Upload `verification-summary.md` + screenshots + console/network logs.
 
 ### Rollback workflow
 
@@ -178,8 +176,8 @@ Secrets/variables: xem `docs/observability-runbook.md`.
 
 ### Canonical runtime URL
 
-- **Canonical runtime URL:** `https://www.jysenglish.com/quan-ly-nhan-su`
-- Legacy entry `https://www.jysenglish.com/?app=jys-hr` is allowed only as an input URL and must redirect deterministically to `/quan-ly-nhan-su` (301 or router redirect).
+- **Single runtime URL (permanent):** `https://www.jysenglish.com/?app=jys-hr`
+- No second page, no `/quan-ly-nhan-su`, no redirect to maintain — one URL only.
 
 ### Canonical CI workflow file
 
@@ -189,32 +187,13 @@ Secrets/variables: xem `docs/observability-runbook.md`.
 ### Fallback/rollback process
 
 1. If a bad production deploy happens, re-run `.github/workflows/deploy-wix.yml` from the last known-good commit SHA.
-2. Confirm the Wix custom embed points to the expected bundle URL and that bundle no longer contains `__API_URL__` placeholder.
-3. Verify runtime behavior on both:
-   - `https://www.jysenglish.com/quan-ly-nhan-su`
-   - `https://www.jysenglish.com/?app=jys-hr` (must redirect to canonical URL).
-4. If redirect breaks, restore Wix Redirect Manager rule (or Velo router fallback) from `?app=jys-hr` to `/quan-ly-nhan-su`, then republish Wix site.
+2. Or re-point the Wix Custom Embed `BUNDLE_URL` to the previous run's `artifacts/deploy-manifest.json` `bundleUrl`.
+3. Confirm `?action=health` returns the matching build and the app renders at `https://www.jysenglish.com/?app=jys-hr`.
 
 ### Deployment freshness policy (SLO + verification)
 
-- **Example SLO:** merged PR should be visible on `https://www.jysenglish.com/?app=jys-hr` within **5 minutes** (with deterministic redirect to canonical `/quan-ly-nhan-su`).
-- This SLO tracks freshness from merge/deploy to end-user-visible render.
-
-**Exact verification steps**
-
-1. **Check custom embed `BUNDLE_URL`**
-   - In Wix page settings for `/quan-ly-nhan-su`, open the custom embed and copy the exact configured `BUNDLE_URL`.
-   - Confirm the URL points to the intended new artifact.
-2. **Fetch bundle content hash/version marker**
-   - Fetch the bundle from `BUNDLE_URL` and compute hash:
-     - `curl -fsSL "$BUNDLE_URL" | shasum -a 256`
-   - Compare against expected version marker (commit SHA / release marker) for the merged PR.
-3. **Verify page render after cache window**
-   - Wait for the cache window to pass (up to the 5-minute SLO budget).
-   - Hard-refresh and verify runtime on both:
-     - `https://www.jysenglish.com/quan-ly-nhan-su`
-     - `https://www.jysenglish.com/?app=jys-hr` (must redirect to canonical route).
-   - Confirm the page renders and reflects the merged change.
+- **Example SLO:** a merged PR is visible at `https://www.jysenglish.com/?app=jys-hr` within **5 minutes** (Wix CDN cache window).
+- This is verified automatically by `scripts/verify-production.mjs` (build parity + render). Manual check: `curl -fsSL "$BUNDLE_URL" | shasum -a 256` and compare the bundle's injected `APP_BUILD` against `health.backendBuild`.
 
 **Rollback note**
 

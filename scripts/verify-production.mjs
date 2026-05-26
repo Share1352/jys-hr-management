@@ -4,8 +4,7 @@
 // consistent and on the same build — and writes artifacts a human (or CI) can read.
 //
 // Env (all optional unless noted):
-//   PROD_URL        default https://www.jysenglish.com/quan-ly-nhan-su
-//   LEGACY_URL      default https://www.jysenglish.com/?app=jys-hr
+//   PROD_URL/APP_URL  default https://www.jysenglish.com/?app=jys-hr (single canonical URL)
 //   API_URL         required: Apps Script /exec URL (backend health)
 //   WIX_API_KEY     required: read the Custom Embed to find BUNDLE_URL
 //   WIX_SITE_ID     default JYS site
@@ -21,8 +20,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-const PROD_URL   = process.env.PROD_URL   || "https://www.jysenglish.com/quan-ly-nhan-su";
-const LEGACY_URL = process.env.LEGACY_URL || "https://www.jysenglish.com/?app=jys-hr";
+// Single canonical URL — the only way to reach the app on jysenglish.com.
+const PROD_URL   = process.env.PROD_URL || process.env.APP_URL || "https://www.jysenglish.com/?app=jys-hr";
 const API_URL    = process.env.API_URL    || "";
 const WIX_API_KEY = process.env.WIX_API_KEY || "";
 const SITE_ID    = process.env.WIX_SITE_ID  || "a3bfa336-e918-48e6-831b-82ed7ff178f5";
@@ -168,10 +167,10 @@ async function main() {
         check("Login: button renders", hasBtn > 0);
         check("Login: HR title/text present", /Quản lý nhân sự|JYS|Đăng nhập/i.test(bodyText));
       }
-      await page.screenshot({ path: path.join(ART, "canonical-login.png"), fullPage: true });
+      await page.screenshot({ path: path.join(ART, "app-login.png"), fullPage: true });
     } catch (e) {
       check("Canonical page renders HR app", false, e.message);
-      await page.screenshot({ path: path.join(ART, "canonical-error.png") }).catch(() => {});
+      await page.screenshot({ path: path.join(ART, "app-error.png") }).catch(() => {});
     }
 
     // Only fail on real JS errors — not Wix's own resource 404s / i18n warnings.
@@ -182,21 +181,6 @@ async function main() {
       uncaught ? JSON.stringify({ pageErrors, consoleErrors: realConsoleErrors }).slice(0, 800) : "");
     await fs.writeFile(path.join(ART, "console-log.json"), JSON.stringify(consoleMsgs, null, 2));
     await fs.writeFile(path.join(ART, "network-failures.json"), JSON.stringify(failedReqs, null, 2));
-
-    // Legacy URL → must deterministically land on the same app (redirect to
-    // canonical, or render the app in-place).
-    try {
-      const legacyPage = await ctx.newPage();
-      await legacyPage.goto(LEGACY_URL, { waitUntil: "domcontentloaded", timeout: 45000 });
-      const legacyFrame = await waitForAppFrame(legacyPage);
-      const finalUrl = legacyPage.url();
-      const landsCanonical = /quan-ly-nhan-su/.test(finalUrl) || !!legacyFrame;
-      check("Legacy URL lands on the HR app", landsCanonical, `final=${finalUrl} appFrame=${!!legacyFrame}`);
-      await legacyPage.screenshot({ path: path.join(ART, "legacy.png") }).catch(() => {});
-      await legacyPage.close();
-    } catch (e) {
-      check("Legacy URL lands on the HR app", false, e.message);
-    }
 
     // --- Optional authenticated e2e ---
     const code = process.env.E2E_MANAGER_CODE;
@@ -245,8 +229,7 @@ async function main() {
     "",
     `- Generated: ${new Date().toISOString()}`,
     `- Expected build: ${EXPECTED || "(unknown)"}`,
-    `- Canonical URL: ${PROD_URL}`,
-    `- Legacy URL: ${LEGACY_URL}`,
+    `- App URL (single canonical): ${PROD_URL}`,
     bundleUrl ? `- Bundle URL: ${bundleUrl}` : "- Bundle URL: (not resolved)",
     "",
     "## Checklist",

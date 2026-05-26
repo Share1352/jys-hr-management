@@ -1,7 +1,7 @@
 # Observability runbook — JYS HR
 
 How to answer operational questions about the live app from GitHub Actions and the
-backend, without manual poking. Canonical app: `https://www.jysenglish.com/quan-ly-nhan-su`.
+backend, without manual poking. Single app URL (permanent): `https://www.jysenglish.com/?app=jys-hr`.
 
 ## Required repository configuration
 
@@ -25,7 +25,7 @@ Variables (Settings → Variables): `WIX_SITE_ID`, `WIX_EMBED_ID` (defaults bake
 
 1. Open the latest **Deploy HR** run → its artifact `deploy-manifest.json` has `buildId` + `bundleUrl`.
 2. `curl "$API_URL?action=health"` → `backendBuild` must equal that `buildId`.
-3. Open `https://www.jysenglish.com/quan-ly-nhan-su` → footer "Phiên bản hệ thống: giao diện … · máy chủ …" must show the same build on both sides. A red banner appears if they differ.
+3. Open `https://www.jysenglish.com/?app=jys-hr` → footer "Phiên bản hệ thống: giao diện … · máy chủ …" must show the same build on both sides. A red banner appears if they differ.
 4. Or just read `artifacts/verification-summary.md` from the latest **Verify production** run.
 
 ## "What failed?"
@@ -33,7 +33,7 @@ Variables (Settings → Variables): `WIX_SITE_ID`, `WIX_EMBED_ID` (defaults bake
 1. Read `artifacts/verification-summary.md` — one row per check with ✅/❌ and detail.
 2. `artifacts/console-log.json` + `network-failures.json` — browser-side errors on initial render.
 3. `artifacts/health.json` — backend health + per-sheet status.
-4. Screenshots (`canonical-login.png`, `legacy.png`) — what the page actually rendered.
+4. Screenshot (`app-login.png`) — what the page actually rendered.
 5. Backend: manager → tab **Chẩn đoán** → **Tải log gần đây**, or call `getAuditLog`.
 
 ## Using requestId
@@ -57,4 +57,4 @@ Variables (Settings → Variables): `WIX_SITE_ID`, `WIX_EMBED_ID` (defaults bake
 
 1. Actions → **Deploy HR** → Run workflow → pick the last known-good commit SHA.
 2. Or re-point the Wix Custom Embed `BUNDLE_URL` to the previous run's `deploy-manifest.json` `bundleUrl`, then republish Wix.
-3. Confirm: `?action=health` build matches, canonical page renders, legacy `/?app=jys-hr` lands on canonical, no console errors. Re-run **Verify production**.
+3. Confirm: `?action=health` build matches, the app renders at `https://www.jysenglish.com/?app=jys-hr`, no console errors. Re-run **Verify production**.

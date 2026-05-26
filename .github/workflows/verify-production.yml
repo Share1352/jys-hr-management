@@ -18,14 +18,14 @@ jobs:
     permissions:
       contents: read
     env:
-      PROD_URL:     https://www.jysenglish.com/quan-ly-nhan-su
-      LEGACY_URL:   https://www.jysenglish.com/?app=jys-hr
+      PROD_URL:     https://www.jysenglish.com/?app=jys-hr
       API_URL:      ${{ secrets.API_URL }}
       WIX_API_KEY:  ${{ secrets.WIX_API_KEY }}
       WIX_SITE_ID:  ${{ vars.WIX_SITE_ID  || 'a3bfa336-e918-48e6-831b-82ed7ff178f5' }}
       WIX_EMBED_ID: ${{ vars.WIX_EMBED_ID || '516cefe5-e0bb-4b1c-9d06-5bb16dd6482f' }}
       # No EXPECTED_BUILD on schedule → verify enforces frontend==backend parity instead.
       FULL_E2E_REQUIRED: "false"
+      E2E_MANAGER_CODE: ${{ secrets.E2E_MANAGER_CODE }}
       ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
     steps:
       - uses: actions/checkout@v4

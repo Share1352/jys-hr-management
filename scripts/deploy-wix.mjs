@@ -34,8 +34,8 @@ const HTML_PATH        = path.resolve("production/jys_quan_ly_nhan_su.html");
 const MANIFEST_PATH    = path.resolve("artifacts/deploy-manifest.json");
 const API_PLACEHOLDER  = "__API_URL__";
 const BUILD_PLACEHOLDER = "__APP_BUILD__";
-const CANONICAL_URL = "https://www.jysenglish.com/quan-ly-nhan-su";
-const LEGACY_URL    = "https://www.jysenglish.com/?app=jys-hr";
+// Single canonical URL — the only way to reach the app on jysenglish.com.
+const APP_URL = process.env.APP_URL || "https://www.jysenglish.com/?app=jys-hr";
 
 function required(name) {
   const v = process.env[name];
@@ -195,8 +195,7 @@ async function main() {
     commitSha: fullSha(),
     shortSha: sha,
     generatedAt: new Date().toISOString(),
-    canonicalUrl: CANONICAL_URL,
-    legacyUrl: LEGACY_URL,
+    canonicalUrl: APP_URL,
     wixSiteId: SITE_ID,
     wixEmbedId: EMBED_ID,
     bundleUrl,
@@ -206,8 +205,7 @@ async function main() {
   await fs.writeFile(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
 
   console.log("\nDeploy OK.");
-  console.log(`  Canonical URL : ${CANONICAL_URL}`);
-  console.log(`  Legacy URL    : ${LEGACY_URL}`);
+  console.log(`  App URL       : ${APP_URL}`);
   console.log(`  Build ID      : ${BUILD_ID}`);
   console.log(`  Bundle URL    : ${bundleUrl}`);
   console.log(`  Wix File ID   : ${fileId}`);
