@@ -36,6 +36,17 @@ function buildId() {
   return `${stamp}-${shortSha()}`;
 }
 
+function parseCreds(raw) {
+  const s = String(raw).replace(/^﻿/, "").trim();
+  try { return JSON.parse(s); } catch {}
+  // Some setups base64 the file to dodge shell/secret mangling.
+  try {
+    const dec = Buffer.from(s, "base64").toString("utf8").replace(/^﻿/, "").trim();
+    if (dec.startsWith("{")) return JSON.parse(dec);
+  } catch {}
+  return null;
+}
+
 function failMissing(lines) {
   console.error("GAS deploy blocked — required configuration is missing:");
   for (const l of lines) console.error(`  - ${l}`);
@@ -53,9 +64,18 @@ async function main() {
   if (!CREDS)     missing.push("CLASP_CREDENTIALS_JSON or CLASP_CREDENTIALS (~/.clasprc.json oauth contents)");
   if (missing.length) failMissing(missing);
 
-  // Validate credentials are JSON before writing.
-  try { JSON.parse(CREDS); }
-  catch { failMissing(["CLASP_CREDENTIALS_JSON/CLASP_CREDENTIALS is not valid JSON"]); }
+  // Parse credentials tolerantly: strip BOM/whitespace, accept raw JSON or base64-of-JSON.
+  const parsedCreds = parseCreds(CREDS);
+  if (!parsedCreds) {
+    const s = String(CREDS).replace(/^﻿/, "").trim();
+    // Non-leaking diagnostic: only length + whether it begins like JSON.
+    failMissing([
+      `CLASP_CREDENTIALS_JSON is not valid JSON (length=${s.length}, beginsWith='{'=${s.startsWith("{")}).`,
+      "Expected the literal contents of ~/.clasprc.json. Re-set with: gh secret set CLASP_CREDENTIALS_JSON < ~/.clasprc.json",
+      "If your clasp version splits creds, the file may live at ~/.config/clasp/.clasprc.json — use that file.",
+    ]);
+  }
+  const credsJson = JSON.stringify(parsedCreds);
 
   console.log(`Build ID : ${BUILD_ID}`);
   console.log(`Script   : ${SCRIPT_ID}`);
@@ -87,8 +107,8 @@ async function main() {
   // 5. .clasp.json (inside temp dir; clasp uses cwd's config).
   await fs.writeFile(CLASP_JSON, JSON.stringify({ scriptId: SCRIPT_ID, rootDir: "." }, null, 2));
 
-  // 6. ~/.clasprc.json credentials.
-  await fs.writeFile(CLASPRC, CREDS, { mode: 0o600 });
+  // 6. ~/.clasprc.json credentials (normalized JSON).
+  await fs.writeFile(CLASPRC, credsJson, { mode: 0o600 });
 
   const run = (cmd) => {
     console.log(`→ ${cmd}`);
