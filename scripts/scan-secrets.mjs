@@ -4,10 +4,13 @@
 
 import { execSync } from "node:child_process";
 
+const EXCLUDES = [".git", "node_modules", ".tmp", "artifacts", "dist", "build", ".cache",
+  "playwright-report", "test-results"].map((d) => `--exclude-dir=${d}`).join(" ");
+
 function grep(pattern, paths = ".") {
   try {
-    // -I skip binary, -n line numbers, -R recursive, exclude .git
-    return execSync(`grep -RIn --exclude-dir=.git -E '${pattern}' ${paths}`, { stdio: ["ignore", "pipe", "ignore"] })
+    // -I skip binary, -n line numbers, -R recursive; skip deps/build/generated dirs.
+    return execSync(`grep -RIn ${EXCLUDES} -E '${pattern}' ${paths}`, { stdio: ["ignore", "pipe", "ignore"] })
       .toString().trim().split("\n").filter(Boolean);
   } catch { return []; } // grep exits 1 when no match
 }
