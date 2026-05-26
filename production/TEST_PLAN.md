@@ -22,6 +22,9 @@ Người chạy: Codex (automation)   Ngày: 2026-05-20
 - [x] ❌ Tab **Nhân viên** + đã chọn tên + chỉ nhập 2 chữ số → báo "Mã cá nhân gồm 4 chữ số".
 - [x] ❌ Tab **Nhân viên** + đã chọn tên + nhập 4 số sai → báo lỗi đỏ "Sai mã cá nhân".
 - [x] ❌ Cứ mỗi lần kiểm tra đăng nhập, **overlay loading hiện rồi tắt** chứ không treo mãi.
+- [ ] Frontend có placeholder `__APP_BUILD__` và footer hiển thị nhãn build tiếng Việt (không gây vướng UI).
+- [ ] API `ping` trả về `backendBuild` lấy từ Script Property `APP_BUILD` (hoặc fallback constant khi property chưa đặt).
+- [ ] Sau đăng nhập (quản lý hoặc nhân viên), frontend hiển thị đủ 2 vế build và **build giao diện == build backend**.
 
 ## C. Đăng nhập quản lý
 

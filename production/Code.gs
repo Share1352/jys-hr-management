@@ -33,6 +33,7 @@ var COLS_LUONGTHANG = ["id","empId","month","luongThucTe","ghiChu","createdAt","
 var COLS_AUDIT      = ["id","ts","actorRole","actorId","action","targetSheet","targetId","detailsJson"];
 
 var BRANCHES = ["Đô Lương", "Vinh", "Quảng Sơn"];
+var DEFAULT_APP_BUILD = "dev";
 
 
 /* ============================================================
@@ -86,11 +87,15 @@ function ensureSheet_(ss, name, cols) {
 /* ============================================================
  * ROUTER
  * ============================================================ */
+function getAppBuild_() {
+  return PropertiesService.getScriptProperties().getProperty("APP_BUILD") || DEFAULT_APP_BUILD;
+}
+
 function doGet(e) {
   try {
     var action = (e && e.parameter && e.parameter.action) || "";
     switch (action) {
-      case "ping":         return jsonOk_({pong:true, ts: new Date().getTime()});
+      case "ping":         return jsonOk_({pong:true, ts: new Date().getTime(), backendBuild: getAppBuild_()});
       case "":
         return jsonErr_("Chỉ hỗ trợ POST cho các action nghiệp vụ. Vui lòng gọi doPost.");
       default:
@@ -278,6 +283,7 @@ function loginStaff_(empId, auth) {
 function getAll_(auth) {
   if (!isManager_(auth)) return jsonErr_("Mã quản lý không đúng");
   return jsonOk_({
+    backendBuild: getAppBuild_(),
     nhanvien:   readSheet_(SHEET_NHANVIEN).filter(function(r){ return String(r.active||"1") !== "0"; }),
     vipham:     readSheet_(SHEET_VIPHAM),
     kiemtra:    readSheet_(SHEET_KIEMTRA),
@@ -293,7 +299,7 @@ function getMine_(empId, auth) {
   var vipham     = readSheet_(SHEET_VIPHAM).filter(function(v){ return String(v.empId) === String(empId); });
   var kiemtra    = readSheet_(SHEET_KIEMTRA).filter(function(k){ return String(k.empId) === String(empId); });
   var luongthang = readSheet_(SHEET_LUONGTHANG).filter(function(l){ return String(l.empId) === String(empId); });
-  return jsonOk_({profile: profile, vipham: vipham, kiemtra: kiemtra, luongthang: luongthang});
+  return jsonOk_({backendBuild: getAppBuild_(), profile: profile, vipham: vipham, kiemtra: kiemtra, luongthang: luongthang});
 }
 
 function saveNhanVien_(body) {
