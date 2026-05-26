@@ -47,6 +47,32 @@ function parseCreds(raw) {
   return null;
 }
 
+// clasp v3 login writes { tokens: { default: { type:"authorized_user", ... } } }.
+// The pinned clasp v2 expects { token, oauth2ClientSettings }. Normalize to v2 so
+// CI works regardless of which clasp the operator used locally to mint the token.
+function toClaspV2(parsed) {
+  if (parsed && parsed.token && parsed.oauth2ClientSettings) return parsed; // already v2
+  const d = (parsed && parsed.tokens && parsed.tokens.default) || parsed;
+  if (d && (d.refresh_token || d.access_token) && d.client_id) {
+    return {
+      token: {
+        access_token: d.access_token,
+        refresh_token: d.refresh_token,
+        scope: d.scope || "",
+        token_type: "Bearer",
+        expiry_date: d.expiry_date || 1, // past → forces refresh via refresh_token
+      },
+      oauth2ClientSettings: {
+        clientId: d.client_id,
+        clientSecret: d.client_secret,
+        redirectUri: d.redirect_uri || "http://localhost",
+      },
+      isLocalCreds: false,
+    };
+  }
+  return parsed; // unknown shape; let clasp try
+}
+
 function failMissing(lines) {
   console.error("GAS deploy blocked — required configuration is missing:");
   for (const l of lines) console.error(`  - ${l}`);
@@ -75,7 +101,7 @@ async function main() {
       "If your clasp version splits creds, the file may live at ~/.config/clasp/.clasprc.json — use that file.",
     ]);
   }
-  const credsJson = JSON.stringify(parsedCreds);
+  const credsJson = JSON.stringify(toClaspV2(parsedCreds));
 
   console.log(`Build ID : ${BUILD_ID}`);
   console.log(`Script   : ${SCRIPT_ID}`);
