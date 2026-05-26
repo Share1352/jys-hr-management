@@ -140,42 +140,62 @@ async function main() {
     page.on("pageerror", (e) => pageErrors.push(String(e)));
     page.on("requestfailed", (r) => failedReqs.push({ url: r.url(), err: r.failure()?.errorText }));
 
+    // The app renders inside a nested iframe (the Wix launcher blob-iframes the
+    // bundle), so search every frame, not just the top document.
+    const waitForAppFrame = async (pg, ms = 25000) => {
+      const deadline = Date.now() + ms;
+      while (Date.now() < deadline) {
+        for (const f of pg.frames()) {
+          try { if (await f.locator("#btnLogin").count()) return f; } catch {}
+        }
+        await pg.waitForTimeout(1000);
+      }
+      return null;
+    };
+
+    let appFrame = null;
     try {
-      await page.goto(PROD_URL, { waitUntil: "networkidle", timeout: 45000 });
-      // Login UI: segment tabs + login button.
-      const hasStaff = await page.locator("#segStaff").count();
-      const hasMgr   = await page.locator("#segMgr").count();
-      const hasBtn   = await page.locator("#btnLogin").count();
-      const bodyText = await page.locator("body").innerText().catch(() => "");
-      check("Login: Nhân viên / Quản lý tabs render", hasStaff > 0 && hasMgr > 0);
-      check("Login: button renders", hasBtn > 0);
-      check("Login: HR title/text present",
-        /Quản lý nhân sự|JYS|Đăng nhập/i.test(bodyText));
+      await page.goto(PROD_URL, { waitUntil: "domcontentloaded", timeout: 45000 });
+      appFrame = await waitForAppFrame(page);
+      check("Canonical page renders HR app", !!appFrame,
+        appFrame ? "" : "no login UI in any frame (is the /quan-ly-nhan-su Wix page published with the embed?)");
+      if (appFrame) {
+        const hasStaff = await appFrame.locator("#segStaff").count();
+        const hasMgr   = await appFrame.locator("#segMgr").count();
+        const hasBtn   = await appFrame.locator("#btnLogin").count();
+        const bodyText = await appFrame.locator("body").innerText().catch(() => "");
+        check("Login: Nhân viên / Quản lý tabs render", hasStaff > 0 && hasMgr > 0);
+        check("Login: button renders", hasBtn > 0);
+        check("Login: HR title/text present", /Quản lý nhân sự|JYS|Đăng nhập/i.test(bodyText));
+      }
       await page.screenshot({ path: path.join(ART, "canonical-login.png"), fullPage: true });
     } catch (e) {
-      check("Canonical page renders", false, e.message);
+      check("Canonical page renders HR app", false, e.message);
       await page.screenshot({ path: path.join(ART, "canonical-error.png") }).catch(() => {});
     }
 
-    const uncaught = pageErrors.length + consoleMsgs.filter((m) => m.type === "error").length;
+    // Only fail on real JS errors — not Wix's own resource 404s / i18n warnings.
+    const realConsoleErrors = consoleMsgs.filter(
+      (m) => m.type === "error" && !/Failed to load resource/i.test(m.text));
+    const uncaught = pageErrors.length + realConsoleErrors.length;
     check("No uncaught errors on initial render", uncaught === 0,
-      uncaught ? JSON.stringify({ pageErrors, consoleErrors: consoleMsgs.filter((m) => m.type === "error") }).slice(0, 800) : "");
+      uncaught ? JSON.stringify({ pageErrors, consoleErrors: realConsoleErrors }).slice(0, 800) : "");
     await fs.writeFile(path.join(ART, "console-log.json"), JSON.stringify(consoleMsgs, null, 2));
     await fs.writeFile(path.join(ART, "network-failures.json"), JSON.stringify(failedReqs, null, 2));
 
-    // Legacy URL → should land deterministically on canonical app.
+    // Legacy URL → must deterministically land on the same app (redirect to
+    // canonical, or render the app in-place).
     try {
       const legacyPage = await ctx.newPage();
-      await legacyPage.goto(LEGACY_URL, { waitUntil: "networkidle", timeout: 45000 });
+      await legacyPage.goto(LEGACY_URL, { waitUntil: "domcontentloaded", timeout: 45000 });
+      const legacyFrame = await waitForAppFrame(legacyPage);
       const finalUrl = legacyPage.url();
-      const legacyText = await legacyPage.locator("body").innerText().catch(() => "");
-      const landsCanonical = /quan-ly-nhan-su/.test(finalUrl) ||
-        /Quản lý nhân sự|Đăng nhập|JYS/i.test(legacyText);
-      check("Legacy URL lands on canonical app", landsCanonical, `final=${finalUrl}`);
+      const landsCanonical = /quan-ly-nhan-su/.test(finalUrl) || !!legacyFrame;
+      check("Legacy URL lands on the HR app", landsCanonical, `final=${finalUrl} appFrame=${!!legacyFrame}`);
       await legacyPage.screenshot({ path: path.join(ART, "legacy.png") }).catch(() => {});
       await legacyPage.close();
     } catch (e) {
-      check("Legacy URL lands on canonical app", false, e.message);
+      check("Legacy URL lands on the HR app", false, e.message);
     }
 
     // --- Optional authenticated e2e ---
