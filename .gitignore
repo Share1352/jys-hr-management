@@ -20,3 +20,13 @@ node_modules/
 dist/
 build/
 .cache/
+
+# Deploy/verify generated files and credentials — never commit
+.tmp/
+.tmp-app-check.js
+artifacts/
+.clasp.json
+.clasprc.json
+playwright-report/
+test-results/
+package-lock.json

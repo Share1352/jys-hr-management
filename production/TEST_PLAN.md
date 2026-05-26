@@ -4,125 +4,145 @@ Chạy toàn bộ checklist này **trước khi giao app cho nhân viên dùng**
 
 Người chạy: Codex (automation)   Ngày: 2026-05-20
 
-> Kết quả run này là **evidence-based fail/blocked** vì môi trường CLI hiện tại không có quyền truy cập runtime Wix production, Apps Script project, Google Sheet production hoặc thiết bị mobile thực tế. Các mục dưới đây được đánh dấu ❌ theo trạng thái validation thực tế hiện tại (chưa thể xác nhận pass).
+> **Trạng thái:** các mục để trống (`[ ]`) là chưa xác nhận thủ công. Nhiều mục runtime giờ được **CI tự động kiểm tra** (xem mục **M** và phần "Automated production verification evidence"): health endpoint, khớp build giao diện/máy chủ, render trang đăng nhập, redaction log. Các mục còn lại (mobile thực tế, UX nhân viên) vẫn cần kiểm tra thủ công.
+
+---
+
+## Automated production verification evidence
+
+Điền sau mỗi lần deploy/verify chạy trên CI (artifacts đính kèm ở run GitHub Actions):
+
+| Trường | Giá trị |
+|---|---|
+| Build ID | `____________________` |
+| Commit SHA | `____________________` |
+| Deploy workflow run URL | `____________________` |
+| Verify workflow run URL | `____________________` |
+| Health endpoint result | `artifacts/health.json` |
+| Screenshot | `artifacts/canonical-login.png`, `artifacts/legacy.png` |
+| Console/network log | `artifacts/console-log.json`, `artifacts/network-failures.json` |
+| Deploy manifest | `artifacts/deploy-manifest.json` |
+| Pass/Fail | `____________________` |
+
+Nguồn sự thật: `artifacts/verification-summary.md` (checklist pass/fail do `scripts/verify-production.mjs` sinh ra).
 
 ---
 
 ## A. Cấu hình ban đầu
 
-- [x] ❌ Mở app từ địa chỉ chính thức (`/quan-ly-nhan-su` trên Wix, hoặc URL deploy). **App phải hiện màn hình đăng nhập trong < 3 giây.**
-- [x] ❌ Không có lỗi gì hiện trên console của trình duyệt (Devtools → Console).
-- [x] ❌ Logo JYS hiện rõ ở giữa khung đăng nhập.
-- [x] ❌ Có thể chuyển giữa hai tab **Nhân viên / Quản lý** ở khung đăng nhập.
+- [ ] Mở app từ địa chỉ chính thức (`/quan-ly-nhan-su` trên Wix, hoặc URL deploy). **App phải hiện màn hình đăng nhập trong < 3 giây.**
+- [ ] Không có lỗi gì hiện trên console của trình duyệt (Devtools → Console).
+- [ ] Logo JYS hiện rõ ở giữa khung đăng nhập.
+- [ ] Có thể chuyển giữa hai tab **Nhân viên / Quản lý** ở khung đăng nhập.
 
 ## B. Đăng nhập sai
 
-- [x] ❌ Tab **Quản lý** + nhập mã sai → báo lỗi đỏ "Sai mã quản lý" (không phải "Không kết nối được máy chủ").
-- [x] ❌ Tab **Nhân viên** + chưa chọn tên → báo "Chọn tên của bạn".
-- [x] ❌ Tab **Nhân viên** + đã chọn tên + chỉ nhập 2 chữ số → báo "Mã cá nhân gồm 4 chữ số".
-- [x] ❌ Tab **Nhân viên** + đã chọn tên + nhập 4 số sai → báo lỗi đỏ "Sai mã cá nhân".
-- [x] ❌ Cứ mỗi lần kiểm tra đăng nhập, **overlay loading hiện rồi tắt** chứ không treo mãi.
+- [ ] Tab **Quản lý** + nhập mã sai → báo lỗi đỏ "Sai mã quản lý" (không phải "Không kết nối được máy chủ").
+- [ ] Tab **Nhân viên** + chưa chọn tên → báo "Chọn tên của bạn".
+- [ ] Tab **Nhân viên** + đã chọn tên + chỉ nhập 2 chữ số → báo "Mã cá nhân gồm 4 chữ số".
+- [ ] Tab **Nhân viên** + đã chọn tên + nhập 4 số sai → báo lỗi đỏ "Sai mã cá nhân".
+- [ ] Cứ mỗi lần kiểm tra đăng nhập, **overlay loading hiện rồi tắt** chứ không treo mãi.
 - [ ] Frontend có placeholder `__APP_BUILD__` và footer hiển thị nhãn build tiếng Việt (không gây vướng UI).
 - [ ] API `ping` trả về `backendBuild` lấy từ Script Property `APP_BUILD` (hoặc fallback constant khi property chưa đặt).
 - [ ] Sau đăng nhập (quản lý hoặc nhân viên), frontend hiển thị đủ 2 vế build và **build giao diện == build backend**.
 
 ## C. Đăng nhập quản lý
 
-- [x] ❌ Nhập đúng mã quản lý (từ Script Properties) → vào app, header hiện chip **đen "Quản lý"**.
-- [x] ❌ Có đủ 5 tab: **Tổng quan, Hồ sơ nhân sự, Ghi nhận vi phạm, Danh mục lỗi, Kiểm tra**.
+- [ ] Nhập đúng mã quản lý (từ Script Properties) → vào app, header hiện chip **đen "Quản lý"**.
+- [ ] Có đủ 5 tab: **Tổng quan, Hồ sơ nhân sự, Ghi nhận vi phạm, Danh mục lỗi, Kiểm tra**.
 
 ## D. CRUD nhân viên
 
-- [x] ❌ Tab **Hồ sơ nhân sự**: form bên trái hiện rõ. Combo "Chi nhánh" có đúng 3 lựa chọn: **Đô Lương, Vinh, Quảng Sơn** (không còn "Văn Hiến").
-- [x] ❌ Combo chi nhánh trong bộ lọc bên phải cũng có đúng 3 lựa chọn đó + "Tất cả".
-- [x] ❌ Trên tab **Tổng quan**, combo lọc "Chi nhánh" cũng đúng 3 lựa chọn đó + "Tất cả chi nhánh".
-- [x] ❌ Header app dưới logo: "Trung tâm Anh ngữ Quốc tế JYS · Đô Lương · Vinh · **Quảng Sơn**".
+- [ ] Tab **Hồ sơ nhân sự**: form bên trái hiện rõ. Combo "Chi nhánh" có đúng 3 lựa chọn: **Đô Lương, Vinh, Quảng Sơn** (không còn "Văn Hiến").
+- [ ] Combo chi nhánh trong bộ lọc bên phải cũng có đúng 3 lựa chọn đó + "Tất cả".
+- [ ] Trên tab **Tổng quan**, combo lọc "Chi nhánh" cũng đúng 3 lựa chọn đó + "Tất cả chi nhánh".
+- [ ] Header app dưới logo: "Trung tâm Anh ngữ Quốc tế JYS · Đô Lương · Vinh · **Quảng Sơn**".
 
-- [x] ❌ **Thêm mới** một nhân viên (tên giả "Test Một"): chọn chi nhánh "Đô Lương", lương 9.000.000, nhập đủ vào ngày sinh, ngày vào làm, hợp đồng từ–đến.
-- [x] ❌ Hạng nghề nghiệp tự đổi sang **Bậc 2** khi nhập 9.000.000.
-- [x] ❌ Bấm **Lưu hồ sơ**. Overlay hiện. **Hộp thoại mã cá nhân hiện** với mã 4 số to, dễ đọc, kèm tên nhân viên. Nút "Sao chép mã" copy được vào clipboard.
-- [x] ❌ Đóng hộp thoại → nhân viên hiện trong bảng bên phải, cột "Mã CN" hiện đúng mã đã thấy.
-- [x] ❌ Mở lại sheet `NhanVien`: row mới có cột `maCaNhan` đúng mã đó, cột `createdAt` và `updatedAt` đã set.
+- [ ] **Thêm mới** một nhân viên (tên giả "Test Một"): chọn chi nhánh "Đô Lương", lương 9.000.000, nhập đủ vào ngày sinh, ngày vào làm, hợp đồng từ–đến.
+- [ ] Hạng nghề nghiệp tự đổi sang **Bậc 2** khi nhập 9.000.000.
+- [ ] Bấm **Lưu hồ sơ**. Overlay hiện. **Hộp thoại mã cá nhân hiện** với mã 4 số to, dễ đọc, kèm tên nhân viên. Nút "Sao chép mã" copy được vào clipboard.
+- [ ] Đóng hộp thoại → nhân viên hiện trong bảng bên phải, cột "Mã CN" hiện đúng mã đã thấy.
+- [ ] Mở lại sheet `NhanVien`: row mới có cột `maCaNhan` đúng mã đó, cột `createdAt` và `updatedAt` đã set.
 
-- [x] ❌ **Sửa** nhân viên "Test Một": đổi vị trí và lương 13.000.000, bấm Lưu. Hạng tự đổi sang **Bậc 3**. Hộp thoại mã **không hiện** (vì không có "Tạo mã mới"). Toast "Đã cập nhật hồ sơ".
-- [x] ❌ Field `#hrPin` trong form sửa (mode **edit**) là **readonly** ngay khi mở form, không cho gõ/chỉnh sửa trực tiếp.
-- [x] ❌ Nhấn **Tạo mã mới khi lưu** (edit mode) → trạng thái readonly của `#hrPin` vẫn giữ nguyên; bấm Lưu → hộp thoại mã mới hiện. Mã mới khác mã cũ. Sheet `NhanVien` cột `maCaNhan` đã đổi.
+- [ ] **Sửa** nhân viên "Test Một": đổi vị trí và lương 13.000.000, bấm Lưu. Hạng tự đổi sang **Bậc 3**. Hộp thoại mã **không hiện** (vì không có "Tạo mã mới"). Toast "Đã cập nhật hồ sơ".
+- [ ] Field `#hrPin` trong form sửa (mode **edit**) là **readonly** ngay khi mở form, không cho gõ/chỉnh sửa trực tiếp.
+- [ ] Nhấn **Tạo mã mới khi lưu** (edit mode) → trạng thái readonly của `#hrPin` vẫn giữ nguyên; bấm Lưu → hộp thoại mã mới hiện. Mã mới khác mã cũ. Sheet `NhanVien` cột `maCaNhan` đã đổi.
 
-- [x] ❌ Evidence runtime bắt buộc cho mục readonly `#hrPin`: đính kèm (1) screenshot form sửa có thể hiện `#hrPin` không chỉnh được, (2) clip ngắn hoặc ảnh tuần tự khi thử gõ vào `#hrPin` nhưng giá trị không đổi, (3) Network/response + screenshot modal mã mới sau flow **Tạo mã mới khi lưu** để xác nhận luồng regenerate vẫn hoạt động.
+- [ ] Evidence runtime bắt buộc cho mục readonly `#hrPin`: đính kèm (1) screenshot form sửa có thể hiện `#hrPin` không chỉnh được, (2) clip ngắn hoặc ảnh tuần tự khi thử gõ vào `#hrPin` nhưng giá trị không đổi, (3) Network/response + screenshot modal mã mới sau flow **Tạo mã mới khi lưu** để xác nhận luồng regenerate vẫn hoạt động.
 
-- [x] ❌ Thêm vài nhân viên khác ở các chi nhánh khác nhau (Vinh, Quảng Sơn).
-- [x] ❌ **Tìm**: gõ vào ô tìm kiếm → bảng lọc đúng.
-- [x] ❌ **Lọc chi nhánh**: chỉ hiện nhân viên đúng chi nhánh.
-- [x] ❌ **Xem** nhân viên: modal hồ sơ hiện đầy đủ, có **Hạng nghề nghiệp** banner đen, "Còn hiệu lực" pill xanh (nếu hợp đồng còn lâu).
-- [x] ❌ **Xóa** một nhân viên → confirm → mất khỏi danh sách. Mở sheet `NhanVien`: row đó **đã bị xóa thật** (không chỉ ẩn).
+- [ ] Thêm vài nhân viên khác ở các chi nhánh khác nhau (Vinh, Quảng Sơn).
+- [ ] **Tìm**: gõ vào ô tìm kiếm → bảng lọc đúng.
+- [ ] **Lọc chi nhánh**: chỉ hiện nhân viên đúng chi nhánh.
+- [ ] **Xem** nhân viên: modal hồ sơ hiện đầy đủ, có **Hạng nghề nghiệp** banner đen, "Còn hiệu lực" pill xanh (nếu hợp đồng còn lâu).
+- [ ] **Xóa** một nhân viên → confirm → mất khỏi danh sách. Mở sheet `NhanVien`: row đó **đã bị xóa thật** (không chỉ ẩn).
 
 ## E. Cảnh báo hợp đồng
 
-- [x] ❌ Thêm một nhân viên có `hopDongDen` = ngày trong tương lai gần (ví dụ 15 ngày sau hôm nay). Tab **Tổng quan**: cảnh báo đỏ "Sắp hết hạn hợp đồng — [tên]". Có nút **Gửi thông báo gia hạn**.
-- [x] ❌ Bấm nút đó → alert "Tính năng gửi email sẽ được kết nối sau."
-- [x] ❌ Thêm một nhân viên có `hopDongDen` = ngày trong quá khứ. Cảnh báo đỏ "Hết hạn hợp đồng — [tên]". Có nút **Gửi thông báo gia hạn**.
-- [x] ❌ Mở modal Xem nhân viên đó: pill **đỏ** "Hết hạn hợp đồng" / "Sắp hết hạn hợp đồng · còn N ngày".
-- [x] ❌ Nhân viên không nhập `hopDongDen`: hiện "Không xác định thời hạn".
+- [ ] Thêm một nhân viên có `hopDongDen` = ngày trong tương lai gần (ví dụ 15 ngày sau hôm nay). Tab **Tổng quan**: cảnh báo đỏ "Sắp hết hạn hợp đồng — [tên]". Có nút **Gửi thông báo gia hạn**.
+- [ ] Bấm nút đó → alert "Tính năng gửi email sẽ được kết nối sau."
+- [ ] Thêm một nhân viên có `hopDongDen` = ngày trong quá khứ. Cảnh báo đỏ "Hết hạn hợp đồng — [tên]". Có nút **Gửi thông báo gia hạn**.
+- [ ] Mở modal Xem nhân viên đó: pill **đỏ** "Hết hạn hợp đồng" / "Sắp hết hạn hợp đồng · còn N ngày".
+- [ ] Nhân viên không nhập `hopDongDen`: hiện "Không xác định thời hạn".
 
 ## F. Ghi nhận vi phạm
 
-- [x] ❌ Tab **Ghi nhận vi phạm**: chọn nhân viên, chọn lỗi `I.1`. Form hiện đơn giá 10.000đ. Lưu → toast hiện số tiền.
-- [x] ❌ Chọn lỗi `I.2` (per): hiện ô "Số mốc 5 phút". Nhập 3 → tổng 60.000đ. Lưu → hiện đúng trong bảng.
-- [x] ❌ Chọn lỗi `I.3` (manual): hiện warn vàng, ô tiền cho nhập. Để 0 → bấm Lưu → báo "Nhập số tiền phạt".
-- [x] ❌ Chọn lỗi `II.1` (none): ô tiền ẩn. Lưu → bảng hiện "phi tiền tệ".
-- [x] ❌ Lọc theo nhân viên / theo tháng / theo từ khoá → bảng đáp ứng đúng.
-- [x] ❌ **Xuất CSV** → file tải về có dòng tổng cộng, mở Excel hiện đúng tiếng Việt (BOM UTF-8).
-- [x] ❌ **Xóa** một bản ghi vi phạm → mất khỏi bảng và khỏi sheet `ViPham`.
+- [ ] Tab **Ghi nhận vi phạm**: chọn nhân viên, chọn lỗi `I.1`. Form hiện đơn giá 10.000đ. Lưu → toast hiện số tiền.
+- [ ] Chọn lỗi `I.2` (per): hiện ô "Số mốc 5 phút". Nhập 3 → tổng 60.000đ. Lưu → hiện đúng trong bảng.
+- [ ] Chọn lỗi `I.3` (manual): hiện warn vàng, ô tiền cho nhập. Để 0 → bấm Lưu → báo "Nhập số tiền phạt".
+- [ ] Chọn lỗi `II.1` (none): ô tiền ẩn. Lưu → bảng hiện "phi tiền tệ".
+- [ ] Lọc theo nhân viên / theo tháng / theo từ khoá → bảng đáp ứng đúng.
+- [ ] **Xuất CSV** → file tải về có dòng tổng cộng, mở Excel hiện đúng tiếng Việt (BOM UTF-8).
+- [ ] **Xóa** một bản ghi vi phạm → mất khỏi bảng và khỏi sheet `ViPham`.
 
 ## G. Đăng nhập nhân viên & quyền
 
-- [x] ❌ Đăng xuất quản lý. Tab **Nhân viên** → danh sách tên hiện đầy đủ (đã sort theo alphabet tiếng Việt). **Không có lương** trong danh sách (chỉ có tên + chi nhánh).
-- [x] ❌ Chọn "Test Một", nhập mã PIN đúng → vào app. Chip header hiện **xanh** với tên người đó (không phải "Quản lý").
-- [x] ❌ Có đúng 4 tab: **Hồ sơ của tôi, Lỗi của tôi, Danh mục lỗi, Kiểm tra**. **Không có** Tổng quan, Hồ sơ nhân sự, Ghi nhận vi phạm.
-- [x] ❌ Tab **Hồ sơ của tôi**: thấy đầy đủ thông tin của chính mình, lương đúng, hạng đúng.
-- [x] ❌ Tab **Lỗi của tôi**: thấy đúng các vi phạm của mình, không thấy của người khác.
-- [x] ❌ Mở **Devtools → Network**, refresh tab: response từ backend **chỉ chứa profile và vipham của chính mình**, không có cả mảng `nhanvien`.
-- [x] ❌ Trong Devtools → Network, các action xác thực (`loginManager`, `loginStaff`, `getAll`, `getMine`) được gửi bằng **POST** (không lộ auth trên query string URL).
-- [x] ❌ Gọi trực tiếp URL dạng GET (`?action=getAll`, `?action=getMine`, `?action=loginManager`, `?action=loginStaff`) trả lỗi bắt buộc dùng **POST**.
+- [ ] Đăng xuất quản lý. Tab **Nhân viên** → danh sách tên hiện đầy đủ (đã sort theo alphabet tiếng Việt). **Không có lương** trong danh sách (chỉ có tên + chi nhánh).
+- [ ] Chọn "Test Một", nhập mã PIN đúng → vào app. Chip header hiện **xanh** với tên người đó (không phải "Quản lý").
+- [ ] Có đúng 4 tab: **Hồ sơ của tôi, Lỗi của tôi, Danh mục lỗi, Kiểm tra**. **Không có** Tổng quan, Hồ sơ nhân sự, Ghi nhận vi phạm.
+- [ ] Tab **Hồ sơ của tôi**: thấy đầy đủ thông tin của chính mình, lương đúng, hạng đúng.
+- [ ] Tab **Lỗi của tôi**: thấy đúng các vi phạm của mình, không thấy của người khác.
+- [ ] Mở **Devtools → Network**, refresh tab: response từ backend **chỉ chứa profile và vipham của chính mình**, không có cả mảng `nhanvien`.
+- [ ] Trong Devtools → Network, các action xác thực (`loginManager`, `loginStaff`, `getAll`, `getMine`) được gửi bằng **POST** (không lộ auth trên query string URL).
+- [ ] Gọi trực tiếp URL dạng GET (`?action=getAll`, `?action=getMine`, `?action=loginManager`, `?action=loginStaff`) trả lỗi bắt buộc dùng **POST**.
 
 ## H. Kiểm tra (Quiz)
 
-- [x] ❌ Tab **Kiểm tra** (quản lý): chọn nhân viên, bấm Bắt đầu. Câu hỏi và đáp án **xáo trộn** ở mỗi lần làm. Có thể Quay lại, Sửa.
-- [x] ❌ Nộp bài: hiện điểm. Pill "Đạt" hoặc "Chưa đạt". Có "Xem lại câu trả lời" liệt kê câu sai + đáp án đúng + lý giải.
-- [x] ❌ Bảng lịch sử ở trang quiz hiện điểm mới.
-- [x] ❌ **Xóa** một kết quả → mất khỏi bảng và khỏi sheet `KiemTra`.
-- [x] ❌ Tab **Kiểm tra** (nhân viên): tự làm cho chính mình. Lưu xong, sheet `KiemTra` có dòng mới với đúng `empId` của mình.
+- [ ] Tab **Kiểm tra** (quản lý): chọn nhân viên, bấm Bắt đầu. Câu hỏi và đáp án **xáo trộn** ở mỗi lần làm. Có thể Quay lại, Sửa.
+- [ ] Nộp bài: hiện điểm. Pill "Đạt" hoặc "Chưa đạt". Có "Xem lại câu trả lời" liệt kê câu sai + đáp án đúng + lý giải.
+- [ ] Bảng lịch sử ở trang quiz hiện điểm mới.
+- [ ] **Xóa** một kết quả → mất khỏi bảng và khỏi sheet `KiemTra`.
+- [ ] Tab **Kiểm tra** (nhân viên): tự làm cho chính mình. Lưu xong, sheet `KiemTra` có dòng mới với đúng `empId` của mình.
 
 ## I. Lỗi mạng / backend
 
-- [x] ❌ Tắt mạng / chặn URL Apps Script. Thử đăng nhập → báo đúng: **"Không kết nối được máy chủ. Vui lòng kiểm tra lại mạng hoặc bản triển khai Apps Script."** (không phải lỗi JS đỏ).
-- [x] ❌ Bật mạng lại, thao tác tiếp → ổn.
-- [x] ❌ Trong Apps Script: tạm gỡ `MANAGER_CODE` khỏi Script Properties. Đăng nhập quản lý → báo "Sai mã quản lý". Đặt lại → ổn.
-- [x] ❌ Tab `AuditLog` trong Sheet: kiểm tra có ghi event cho mỗi action (login, save, delete).
+- [ ] Tắt mạng / chặn URL Apps Script. Thử đăng nhập → báo đúng: **"Không kết nối được máy chủ. Vui lòng kiểm tra lại mạng hoặc bản triển khai Apps Script."** (không phải lỗi JS đỏ).
+- [ ] Bật mạng lại, thao tác tiếp → ổn.
+- [ ] Trong Apps Script: tạm gỡ `MANAGER_CODE` khỏi Script Properties. Đăng nhập quản lý → báo "Sai mã quản lý". Đặt lại → ổn.
+- [ ] Tab `AuditLog` trong Sheet: kiểm tra có ghi event cho mỗi action (login, save, delete).
 
 ## J. Render trong iframe Wix
 
-- [x] ❌ Mở `https://www.jysenglish.com/quan-ly-nhan-su`. App nằm trong iframe, **không có khoảng đen trên đầu**.
-- [x] ❌ Không có hai thanh scroll.
-- [x] ❌ Đăng nhập, dùng app bình thường — modal, overlay, toast đều hoạt động.
-- [x] ❌ Khi nội dung dài (ví dụ bảng lỗi dài), iframe có **chiều cao đủ** để xem hết (hoặc scroll bên trong iframe nếu chiều cao cố định 100vh).
-- [x] ❌ **Đường dẫn `/?app=jys-hr` và `/#jys-hr` không được dùng** trong tài liệu hoặc menu nội bộ.
+- [ ] Mở `https://www.jysenglish.com/quan-ly-nhan-su`. App nằm trong iframe, **không có khoảng đen trên đầu**.
+- [ ] Không có hai thanh scroll.
+- [ ] Đăng nhập, dùng app bình thường — modal, overlay, toast đều hoạt động.
+- [ ] Khi nội dung dài (ví dụ bảng lỗi dài), iframe có **chiều cao đủ** để xem hết (hoặc scroll bên trong iframe nếu chiều cao cố định 100vh).
+- [ ] **Đường dẫn `/?app=jys-hr` và `/#jys-hr` không được dùng** trong tài liệu hoặc menu nội bộ.
 
 
 ### J evidence notes (Wix deploy pipeline)
 
-- [ ] Xác nhận secrets repository: `WIX_API_KEY` và `API_URL` đã được cấu hình (không rỗng).
+- [ ] Xác nhận secrets repository: `API_URL`, `WIX_API_KEY`, `GAS_SCRIPT_ID`, `CLASP_CREDENTIALS_JSON` (không rỗng). Tùy chọn: `GAS_DEPLOYMENT_ID`, `ALERT_WEBHOOK_URL`, `E2E_MANAGER_CODE`.
 - [ ] Xác nhận repository variables: `WIX_SITE_ID` và `WIX_EMBED_ID` đúng với site production (hoặc giữ mặc định hiện tại có chủ đích).
-- [ ] Trigger thủ công workflow `deploy-wix.yml` bằng `workflow_dispatch`.
-- [ ] Xác nhận step **Smoke-test bundle** trong run đã pass.
+- [ ] Trigger workflow `deploy-wix.yml` (push main hoặc `workflow_dispatch`).
+- [ ] Xác nhận các step pass: Apps Script deploy → health == BUILD_ID → Wix deploy → **Verify production**.
 - [ ] Ghi URL run thành công: `____________________________`.
-- [ ] Đính kèm evidence (log run + ảnh chụp step smoke-test): `____________________________`.
+- [ ] Đính kèm artifacts: `verification-summary.md`, `deploy-manifest.json`, `health.json`, screenshots.
 
 ## K. Mobile / responsive
 
-- [x] ❌ Mở app trên điện thoại (Chrome / Safari). Tabs cuộn ngang được. Form không bị tràn.
-- [x] ❌ Modal mã cá nhân hiện vừa màn hình.
-- [x] ❌ Bàn phím số tự bật khi gõ ô PIN 4 số.
+- [ ] Mở app trên điện thoại (Chrome / Safari). Tabs cuộn ngang được. Form không bị tràn.
+- [ ] Modal mã cá nhân hiện vừa màn hình.
+- [ ] Bàn phím số tự bật khi gõ ô PIN 4 số.
 
 ## L. Lương tháng (LuongThang) — quản lý lương thực tế mỗi tháng
 
@@ -155,17 +175,33 @@ Người chạy: Codex (automation)   Ngày: 2026-05-20
 
 ---
 
+## M. Observability & automated checks (CI tự động)
+
+> Các mục này do `scripts/verify-production.mjs` + workflow chạy tự động. Đánh dấu dựa trên `artifacts/verification-summary.md`.
+
+- [ ] **M.1 — Health endpoint.** `API_URL?action=health` trả `ok:true`, `service:"jys-hr"`, `backendBuild`/`version`, `timestamp`, và `sheets` (NhanVien/ViPham/KiemTra/LuongThang/AuditLog).
+- [ ] **M.2 — `ping` vẫn là alias của health.** `?action=ping` trả cùng payload health.
+- [ ] **M.3 — Khớp build.** Bundle deploy có `var APP_BUILD="<BUILD_ID>"`; health trả cùng build. Bundle `APP_BUILD == health.backendBuild`.
+- [ ] **M.4 — Cảnh báo lệch build.** Khi giao diện ≠ máy chủ (cả hai đã biết), banner đỏ "Cảnh báo phiên bản…" hiện.
+- [ ] **M.5 — Diagnostics object.** Bundle có `window.__JYS_DIAG__` (service, frontendBuild, backendBuild, apiHost — **không** có API_URL đầy đủ, **không** có auth/PIN).
+- [ ] **M.6 — requestId.** Mọi response backend có `requestId`; cùng requestId được ghi vào `AuditLog`.
+- [ ] **M.7 — clientLog → AuditLog.** Telemetry frontend ghi vào `AuditLog` với `source="frontend"`, `actorRole="client"`, `status="client"`.
+- [ ] **M.8 — Ghi log thất bại.** Validation error, auth failure, exception, malformed JSON đều tạo row `AuditLog` với `status` tương ứng.
+- [ ] **M.9 — Redaction.** Trong `AuditLog` không có manager code, PIN, password, API URL đầy đủ, Authorization/Bearer, cookie. (Kiểm tra cột `detailsJson`/`message`.)
+- [ ] **M.10 — getAuditLog chỉ cho quản lý.** `action=getAuditLog` không có `auth` đúng → từ chối; có auth đúng → trả log mới nhất trước, đã redact lại.
+- [ ] **M.11 — Render & legacy.** Trang canonical render UI đăng nhập, không có console error lúc khởi tạo; legacy `/?app=jys-hr` về đúng app canonical.
+
 ## Đánh dấu kết quả tổng
 
 - [ ] Tất cả mục trên đều ✅ → **app sẵn sàng giao cho nhân viên dùng**.
-- [x] Có mục ❌ → ghi rõ và sửa, chạy lại checklist từ section liên quan.
+- [ ] Có mục chưa pass → ghi rõ và sửa, chạy lại checklist từ section liên quan.
 
 ## Final sign-off (bắt buộc trước khi enable GitHub Pages / rollout production)
 
 > Chỉ ký khi toàn bộ checklist đã được chạy thực tế và có evidence đính kèm (runtime validation).
 
 - [ ] **Gate quyết định**: Đủ điều kiện enable GitHub Pages + production rollout.
-- [x] **Gate quyết định**: CHƯA đủ điều kiện, tiếp tục chặn deploy.
+- [ ] **Gate quyết định**: CHƯA đủ điều kiện, tiếp tục chặn deploy.
 
 Owner xác nhận (họ tên): Codex automation (non-human runner)
 

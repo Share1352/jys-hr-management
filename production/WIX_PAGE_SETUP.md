@@ -193,6 +193,14 @@ App có scroll bên trong. Trang Wix bao ngoài cũng có scroll. Để tránh h
 3. App phải hiện màn hình đăng nhập **ngay**, không có khoảng trắng đen phía trên, không có "JYS IELTS" logo Wix khác đè lên (nếu có, gỡ strip/section trùng).
 4. Đăng nhập thử cả tài khoản quản lý và một tài khoản nhân viên (sau khi đã thêm ít nhất một nhân viên qua tài khoản quản lý).
 
+### Tự động hoá & quan sát (observability)
+
+- Bundle deploy bởi `.github/workflows/deploy-wix.yml` (sau khi deploy Apps Script). Custom Embed `BUNDLE_URL` được tự động trỏ tới bundle mới và workflow xác nhận lại.
+- Mỗi bundle có `var APP_BUILD = "<BUILD_ID>"`; backend `?action=health` trả cùng build. Footer app hiện cả hai vế; lệch build → banner cảnh báo đỏ.
+- Tab **Chẩn đoán** (chỉ quản lý) hiển thị build, health, requestId gần nhất và nút "Tải log gần đây".
+- Health endpoint, build ID policy, AuditLog, deploy/verify/rollback: xem `README.md` và `docs/observability-runbook.md`.
+- Kiểm tra tự động liên tục: workflow `verify-production.yml` chạy mỗi 30 phút (canonical + legacy + health + render).
+
 ---
 
 ## 7. Đường dẫn cũ (deprecated) và mốc ngừng dùng
