@@ -78,8 +78,9 @@ jobs:
           set -eu
           mkdir -p artifacts
           ok=0
+          # -L is required: Apps Script /exec 302-redirects to googleusercontent.com.
           for i in 1 2 3 4 5 6; do
-            if curl -fsS "${API_URL}?action=health&requestId=ci-${GITHUB_RUN_ID}-$i" -o artifacts/health.json; then ok=1; break; fi
+            if curl -fsSL "${API_URL}?action=health&requestId=ci-${GITHUB_RUN_ID}-$i" -o artifacts/health.json; then ok=1; break; fi
             sleep 5
           done
           [ "$ok" = "1" ] || { echo "::error::Backend health endpoint unreachable"; exit 1; }
