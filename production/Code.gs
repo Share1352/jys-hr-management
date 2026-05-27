@@ -261,6 +261,23 @@ function getRecoveryEmail_() {
   return PropertiesService.getScriptProperties().getProperty("RECOVERY_EMAIL") || "";
 }
 
+// Run ONCE from the Apps Script editor (Run button) to grant the script the
+// permission to send email (scope script.send_mail). Google requires the owner
+// to approve this interactively — it cannot be granted by clasp/CI. On approval
+// it also sends a confirmation email to RECOVERY_EMAIL so you know it works.
+function authorizeServices() {
+  var to = getRecoveryEmail_();
+  if (to) {
+    MailApp.sendEmail({
+      to: to,
+      subject: "JYS HR — Quyền gửi email đã được cấp",
+      body: "Nếu bạn nhận được email này, tính năng gửi mã quản lý khôi phục đã hoạt động.\n"
+          + "Thời gian: " + new Date().toISOString()
+    });
+  }
+  return "OK" + (to ? " — đã gửi email thử tới " + to : " — chưa đặt RECOVERY_EMAIL");
+}
+
 // Emails the CURRENT manager code to the pre-configured recovery address ONLY.
 // reason: "recovery" (forgot) | "update" (code changed). Never sends to a
 // caller-supplied address; the code is never written to logs.
