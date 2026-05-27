@@ -297,6 +297,7 @@
         <label>Mã quản lý</label>
         <input type="password" id="liMgr" placeholder="Nhập mã quản lý" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
+      <div style="margin-top:8px;text-align:right"><a href="#" id="liForgot" style="font-size:13px;color:#2563eb;text-decoration:none">Quên mã quản lý?</a></div>
     </div>
 
     <div class="login-msg" id="loginMsg"></div>
@@ -826,6 +827,13 @@ function loadEmpListForLogin(){
 $("#btnLogin").onclick=doLogin;
 $("#liPin").addEventListener("keydown",function(e){ if(e.key==="Enter") doLogin(); });
 $("#liMgr").addEventListener("keydown",function(e){ if(e.key==="Enter") doLogin(); });
+if($("#liForgot")) $("#liForgot").onclick=function(e){
+  e.preventDefault();
+  if(!apiReady()){ toast("App chưa được cấu hình."); return; }
+  call({body:{action:"emailManagerCode"}, loading:"Đang gửi…"}).then(function(r){
+    toast(r&&r.ok ? "Đã gửi mã tới email khôi phục." : ((r&&r.error)||"Không gửi được."));
+  }).catch(function(){ toast(NET_ERR); });
+};
 
 // PIN input: chỉ cho phép số, tối đa 4 ký tự
 $("#liPin").addEventListener("input",function(){
@@ -1089,13 +1097,14 @@ function renderAdminCodes(p){
     var rows=res.rows||[];
     p.innerHTML='<div class="card card-pad"><div class="card-h">Mã đăng nhập</div>'+
       '<div class="field"><label>Mã quản lý</label><input id="adminMgrCode" type="text" value="'+esc(res.managerCode||'')+'"></div>'+
+      '<div class="field"><label>Email khôi phục mã</label><input id="adminRecEmail" type="email" placeholder="vd: ten@email.com" value="'+esc(res.recoveryEmail||'')+'"></div>'+
       '<div class="table-scroll"><table><thead><tr><th>Nhân viên</th><th>Mã NV</th><th>Mã cá nhân</th></tr></thead><tbody>'+
       rows.map(function(r){ return '<tr><td>'+esc(r.hoTen||'')+'</td><td>'+esc(r.maNV||'')+'</td><td><input data-pin="'+esc(r.id)+'" maxlength="4" value="'+esc(r.maCaNhan||'')+'"></td></tr>'; }).join('')+
       '</tbody></table></div><div class="btn-row" style="margin-top:12px"><button class="btn" id="adSave">Lưu tất cả mã</button><button class="btn ghost" id="adLogout">Đăng xuất admin</button></div></div>';
     $("#adLogout").onclick=function(){ADMIN_SESSION.ok=false; renderAdminCodes(p);};
     $("#adSave").onclick=function(){
       var updates=rows.map(function(r){ var el=document.querySelector('[data-pin="'+r.id+'"]'); return {id:r.id,maCaNhan:el?el.value.trim():''}; });
-      call({body:{action:"adminSaveCodes",auth:SESSION.auth,managerCode:$("#adminMgrCode").value.trim(),updates:updates},loading:"Đang lưu mã…"}).then(function(r){ toast(r&&r.ok?"Đã lưu mã":"Lỗi lưu mã"); if(r&&r.ok) renderAdminCodes(p); }).catch(function(){toast(NET_ERR);});
+      call({body:{action:"adminSaveCodes",auth:SESSION.auth,managerCode:$("#adminMgrCode").value.trim(),recoveryEmail:$("#adminRecEmail").value.trim(),updates:updates},loading:"Đang lưu mã…"}).then(function(r){ toast(r&&r.ok?"Đã lưu mã":"Lỗi lưu mã"); if(r&&r.ok) renderAdminCodes(p); }).catch(function(){toast(NET_ERR);});
     };
   }).catch(function(){ p.innerHTML='<div class="card card-pad">'+esc(NET_ERR)+'</div>'; });
 }

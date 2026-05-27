@@ -229,6 +229,7 @@ function routeAction_(body) {
     case "clientLog":      return clientLog_(body);
     case "getAuditLog":    return getAuditLog_(body);
     case "listNames":      return jsonOk_({names: listNames_()});
+    case "emailManagerCode": return emailManagerCode_();
     case "loginManager":   return loginManager_(body.auth);
     case "loginStaff":     return loginStaff_(body.empId, body.auth);
     case "getAll":         return getAll_(body.auth);
@@ -254,6 +255,54 @@ function routeAction_(body) {
  * ============================================================ */
 function getManagerCode_() {
   return PropertiesService.getScriptProperties().getProperty("MANAGER_CODE") || "";
+}
+
+function getRecoveryEmail_() {
+  return PropertiesService.getScriptProperties().getProperty("RECOVERY_EMAIL") || "";
+}
+
+// Emails the CURRENT manager code to the pre-configured recovery address ONLY.
+// reason: "recovery" (forgot) | "update" (code changed). Never sends to a
+// caller-supplied address; the code is never written to logs.
+function sendManagerCodeEmail_(reason) {
+  var to = getRecoveryEmail_();
+  if (!to) return false;
+  var code = getManagerCode_();
+  if (!code) return false;
+  var subj = reason === "update" ? "JYS HR — Mã quản lý đã được cập nhật" : "JYS HR — Mã quản lý của bạn";
+  var body = "Mã quản lý hiện tại: " + code + "\n\n"
+    + "Đăng nhập tại: https://www.jysenglish.com/?app=jys-hr\n\n"
+    + (reason === "update"
+        ? "Mã vừa được thay đổi từ trang quản trị.\n"
+        : "Bạn (hoặc ai đó) đã yêu cầu khôi phục mã. Nếu không phải bạn, hãy đổi mã ngay.\n")
+    + "Thời gian: " + new Date().toISOString();
+  MailApp.sendEmail({ to: to, subject: subj, body: body });
+  return true;
+}
+
+// Recovery endpoint — unauthenticated by design (for a forgotten code).
+// Sends ONLY to the pre-set recovery email, rate-limited to 1/5min, audited.
+function emailManagerCode_() {
+  var to = getRecoveryEmail_();
+  if (!to) return jsonErr_("Chưa cấu hình email khôi phục. Đặt RECOVERY_EMAIL trong Script Properties hoặc trang quản trị.");
+  var props = PropertiesService.getScriptProperties();
+  var last = Number(props.getProperty("LAST_RECOVERY_TS") || "0");
+  var now = Date.now();
+  if (now - last < 5 * 60 * 1000) {
+    logEvent_({ level: "warn", status: "rate_limited", source: "backend", actorRole: "anon",
+      action: "emailManagerCode", requestId: ctxReq_(), durationMs: ctxDur_(),
+      message: "Yêu cầu gửi mã quá nhanh — bị giới hạn" });
+    if (CTX) CTX.audited = true;
+    return jsonErr_("Vui lòng đợi vài phút rồi thử lại.");
+  }
+  if (!getManagerCode_()) return jsonErr_("Chưa cấu hình mã quản lý.");
+  sendManagerCodeEmail_("recovery");
+  props.setProperty("LAST_RECOVERY_TS", String(now));
+  logEvent_({ level: "info", status: "success", source: "backend", actorRole: "anon",
+    action: "emailManagerCode", requestId: ctxReq_(), durationMs: ctxDur_(),
+    message: "Đã gửi mã quản lý tới email khôi phục" });
+  if (CTX) CTX.audited = true;
+  return jsonOk_({ sent: true });
 }
 
 function isManager_(auth) {
@@ -933,12 +982,18 @@ function adminGetCodes_(auth){
   var rows=readSheet_(SHEET_NHANVIEN).map(function(r){ return {id:r.id,hoTen:r.hoTen,maNV:r.maNV,maCaNhan:r.maCaNhan}; });
   // Audit the access, but never log the returned manager code or staff PINs.
   audit_("manager","","adminGetCodes",SHEET_NHANVIEN,"",{count:rows.length});
-  return jsonOk_({rows:rows, managerCode:getManagerCode_()});
+  return jsonOk_({rows:rows, managerCode:getManagerCode_(), recoveryEmail:getRecoveryEmail_()});
 }
-function adminSaveCodes_(auth,managerCode,updates){
+function adminSaveCodes_(auth,managerCode,updates,recoveryEmail){
   requireManager_(auth);
-  if(!/^\d{4}$/.test(String(managerCode||""))) return jsonErr_("Mã quản lý phải gồm 4 chữ số");
+  if(!/^[A-Za-z0-9]{4,32}$/.test(String(managerCode||""))) return jsonErr_("Mã quản lý phải gồm 4–32 chữ cái hoặc chữ số");
+  var prevCode=getManagerCode_();
   PropertiesService.getScriptProperties().setProperty("MANAGER_CODE", String(managerCode));
+  if(recoveryEmail!==undefined){
+    var em=String(recoveryEmail||"").trim();
+    if(em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return jsonErr_("Email khôi phục không hợp lệ");
+    PropertiesService.getScriptProperties().setProperty("RECOVERY_EMAIL", em);
+  }
   updates=(updates||[]);
   updates.forEach(function(u){
     if(!/^\d{4}$/.test(String(u.maCaNhan||""))) throw new Error("Mã cá nhân phải gồm 4 chữ số");
@@ -948,6 +1003,8 @@ function adminSaveCodes_(auth,managerCode,updates){
     var pinCol=headers.indexOf("maCaNhan")+1;
     if(pinCol>0) sh.getRange(row,pinCol).setValue(String(u.maCaNhan));
   });
+  // Email the new manager code to the recovery address when it actually changed.
+  if(String(managerCode)!==String(prevCode)){ try{ sendManagerCodeEmail_("update"); }catch(e){} }
   // Record the change count only — never the new manager code or PIN values.
   audit_("manager","","adminSaveCodes",SHEET_NHANVIEN,"",{updated:updates.length});
   return jsonOk_({ok:true});
