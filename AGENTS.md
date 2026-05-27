@@ -12,7 +12,7 @@ This repository is for the JYS HR management system.
 
 - Frontend: `production/jys_quan_ly_nhan_su.html`, a single static HTML file.
 - Backend: `production/Code.gs`, copied into Google Apps Script and connected to Google Sheets.
-- Deployment target: hosted static HTML embedded into Wix `/quan-ly-nhan-su`.
+- Deployment target: hosted static HTML embedded into Wix, served at the single permanent URL `https://www.jysenglish.com/?app=jys-hr`.
 
 ## Security rules
 

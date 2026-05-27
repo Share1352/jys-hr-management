@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Deploys production/jys_quan_ly_nhan_su.html to the live Wix Custom Embed that
-// powers the canonical HR page https://www.jysenglish.com/quan-ly-nhan-su
-// (legacy inbound https://www.jysenglish.com/?app=jys-hr redirects to it).
+// powers the single permanent HR app URL https://www.jysenglish.com/?app=jys-hr
 //
 // Steps:
 //   1. Inject API_URL + APP_BUILD into the HTML (in place of __API_URL__ / __APP_BUILD__).

@@ -11,7 +11,7 @@ Mục tiêu: quay về build trước đó nhanh, an toàn, và có thể kiểm
 
 ## 1) Restore HTML trước đó trên Wix
 
-1. Mở Wix Editor tại trang `/quan-ly-nhan-su`.
+1. Mở Wix Editor tại trang chứa app HR (URL `https://www.jysenglish.com/?app=jys-hr`).
 2. Mở phần embed/custom code đang chạy app HR.
 3. Dán lại nội dung HTML từ bản backup đã xác nhận.
 4. Publish lại site.
@@ -34,7 +34,7 @@ Mục tiêu: quay về build trước đó nhanh, an toàn, và có thể kiểm
 
 ## 4) Checklist xác nhận sau rollback
 
-- [ ] Trang `/quan-ly-nhan-su` tải thành công trên production.
+- [ ] Trang `https://www.jysenglish.com/?app=jys-hr` tải thành công trên production.
 - [ ] Đăng nhập nhân viên hoạt động đúng.
 - [ ] Đăng nhập quản lý bằng mã trong Script Properties hoạt động đúng.
 - [ ] Ghi dữ liệu `ViPham`/`KiemTra` thành công.

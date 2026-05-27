@@ -157,7 +157,7 @@ async function main() {
       await page.goto(PROD_URL, { waitUntil: "domcontentloaded", timeout: 45000 });
       appFrame = await waitForAppFrame(page);
       check("Canonical page renders HR app", !!appFrame,
-        appFrame ? "" : "no login UI in any frame (is the /quan-ly-nhan-su Wix page published with the embed?)");
+        appFrame ? "" : "no login UI in any frame (is the Wix Custom Embed published at ?app=jys-hr?)");
       if (appFrame) {
         const hasStaff = await appFrame.locator("#segStaff").count();
         const hasMgr   = await appFrame.locator("#segMgr").count();

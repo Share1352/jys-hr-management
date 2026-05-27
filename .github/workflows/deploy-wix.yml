@@ -1,4 +1,4 @@
-# ENVIRONMENT: PRODUCTION — canonical end-to-end deploy for https://www.jysenglish.com/quan-ly-nhan-su
+# ENVIRONMENT: PRODUCTION — canonical end-to-end deploy for https://www.jysenglish.com/?app=jys-hr
 # Order: secret scan → build id → Apps Script backend → health==build → Wix bundle → production verification.
 # Path kept as deploy-wix.yml because docs reference it as the canonical production workflow.
 name: Deploy HR (backend + Wix) and verify
